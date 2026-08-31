@@ -602,7 +602,21 @@ func (s *Server) handleTheme(w http.ResponseWriter, r *http.Request) {
 // safeReturn keeps the theme toggle from being turned into an open redirect.
 func (s *Server) safeReturn(p string) string {
 	fallback := joinPath(s.cfg.Server.BasePath, "/r/"+s.cfg.Default().ID)
-	if p == "" || !strings.HasPrefix(p, "/") || strings.HasPrefix(p, "//") {
+	if p == "" || !strings.HasPrefix(p, "/") {
+		return fallback
+	}
+	// Anything that a browser could read as protocol-relative leaves the
+	// origin. Two rules from the WHATWG URL spec make this wider than a "//"
+	// check: a backslash counts as a slash in a special scheme, and tab, CR
+	// and LF are stripped before parsing — so "/\evil.com" and "/\tevil.com"
+	// both become "//evil.com". Control characters have no business in a
+	// same-origin path anyway, so reject the lot.
+	for i := 0; i < len(p); i++ {
+		if p[i] == '\\' || p[i] < 0x20 || p[i] == 0x7f {
+			return fallback
+		}
+	}
+	if len(p) > 1 && p[1] == '/' {
 		return fallback
 	}
 	if bp := s.cfg.Server.BasePath; bp != "" && !strings.HasPrefix(p, bp+"/") {
