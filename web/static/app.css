@@ -364,7 +364,7 @@ button { font: inherit; color: inherit; }
 
 .panel { margin-top: var(--sp-6); }
 .panel__title {
-  display: flex; align-items: baseline; gap: var(--sp-3);
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 var(--sp-3);
   margin: 0 0 var(--sp-3); padding-bottom: var(--sp-2);
   border-bottom: 1px solid var(--line);
   font-size: var(--fs-md); font-weight: 600; letter-spacing: -0.01em;
@@ -535,9 +535,11 @@ button { font: inherit; color: inherit; }
 @media (max-width: 760px) {
   .main { padding: var(--sp-4) var(--sp-3) var(--sp-6); }
   .crumbs { padding: var(--sp-3) var(--sp-3) 0; }
-  .topbar__inner { padding: var(--sp-2) var(--sp-3); flex-wrap: wrap; }
+  .topbar__inner { padding: var(--sp-2) var(--sp-3); gap: var(--sp-2); }
   .brand__name { display: none; }
-  .picker { order: 1; flex: 1; }
+  /* Brand, registry, theme — the registry name takes whatever is left. */
+  .topbar__spacer { display: none; }
+  .picker { flex: 1; }
   .picker__menu { left: auto; right: 0; }
 
   .pagehead { gap: var(--sp-3); }
@@ -568,7 +570,8 @@ button { font: inherit; color: inherit; }
   .layers { margin-top: var(--sp-2); }
 
   .panels { grid-template-columns: 1fr; }
-  .pull { flex-wrap: wrap; }
+  .pull { flex-wrap: wrap; gap: var(--sp-2) var(--sp-3); }
+  .pull__cmd { flex-basis: 100%; order: 3; white-space: normal; word-break: break-all; }
   .danger { flex-direction: column; align-items: flex-start; }
 }
 

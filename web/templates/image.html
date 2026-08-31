@@ -57,15 +57,16 @@
 <section class="panel panel--layers">
   <h2 class="panel__title">
     Layer composition
-    <span class="panel__hint">{{len .Layers}} layers &middot; {{bytes .LayerBytes}} compressed</span>
+    <span class="panel__hint">{{len .Layers}} layers &middot; {{bytes .LayerBytes}} compressed{{if .LayersFrom}} &middot; {{.LayersFrom}}{{end}}</span>
   </h2>
 
   {{/* The bar is proportional to layer size: the widest segment is where the
        image weight actually is, which is the first thing worth knowing. */}}
+  <style nonce="{{.Nonce}}">{{.LayerCSS}}</style>
   <div class="layerbar" role="img" aria-label="Relative size of each layer">
     {{range .Layers}}
     <button class="layerbar__seg{{if .Hot}} is-hot{{end}}" type="button"
-            style="{{.Style}}" data-layer="{{.Index}}"
+            data-layer="{{.Index}}"
             title="Layer {{.Index}} · {{bytes .Size}}{{if .Command}} · {{.Command}}{{end}}"
             aria-label="Layer {{.Index}}, {{bytes .Size}}"></button>
     {{end}}

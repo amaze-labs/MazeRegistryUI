@@ -1,27 +1,47 @@
 package server
 
 import (
+	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"net/http"
 	"strings"
 	"time"
 )
 
+// nonceKey carries the per-request style nonce down to the renderer.
+type nonceKey struct{}
+
+// nonceFrom returns the nonce generated for this request, if any.
+func nonceFrom(ctx context.Context) string {
+	n, _ := ctx.Value(nonceKey{}).(string)
+	return n
+}
+
 // contentSecurityPolicy is deliberately strict: the UI loads nothing from the
 // network at runtime, so everything but same-origin assets can be denied.
-const contentSecurityPolicy = "default-src 'none'; " +
-	"script-src 'self'; " +
-	"style-src 'self'; " +
-	"img-src 'self' data:; " +
-	"font-src 'self'; " +
-	"connect-src 'self'; " +
-	"form-action 'self'; " +
-	"base-uri 'none'; " +
-	"frame-ancestors 'none'"
+//
+// Note that a nonce covers <style> elements but never style attributes, which
+// CSP blocks outright without 'unsafe-inline'. That is why the layer bar puts
+// its computed widths in a nonced <style> block instead of on the elements.
+func contentSecurityPolicy(nonce string) string {
+	return "default-src 'none'; " +
+		"script-src 'self'; " +
+		"style-src 'self' 'nonce-" + nonce + "'; " +
+		"img-src 'self' data:; " +
+		"font-src 'self'; " +
+		"connect-src 'self'; " +
+		"form-action 'self'; " +
+		"base-uri 'none'; " +
+		"frame-ancestors 'none'"
+}
 
 func (s *Server) securityHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		nonce := newNonce()
+		r = r.WithContext(context.WithValue(r.Context(), nonceKey{}, nonce))
 		h := w.Header()
-		h.Set("Content-Security-Policy", contentSecurityPolicy)
+		h.Set("Content-Security-Policy", contentSecurityPolicy(nonce))
 		h.Set("X-Content-Type-Options", "nosniff")
 		h.Set("Referrer-Policy", "same-origin")
 		h.Set("X-Frame-Options", "DENY")
@@ -87,4 +107,14 @@ func sameOriginPost(r *http.Request, token string) bool {
 		return false
 	}
 	return r.PostFormValue("csrf") == token
+}
+
+// newNonce returns a fresh CSP nonce. A failure to read randomness is fatal
+// for the request rather than silently producing a guessable value.
+func newNonce() string {
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		panic("cannot read from the system random source: " + err.Error())
+	}
+	return base64.RawStdEncoding.EncodeToString(b)
 }

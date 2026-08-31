@@ -26,6 +26,8 @@ type Layout struct {
 	Crumbs      []Crumb
 	Query       string
 	CurrentPath string
+	// Nonce authorises the one <style> element the layer bar needs.
+	Nonce string
 }
 
 // RegistryOption is one entry of the registry picker.

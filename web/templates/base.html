@@ -23,7 +23,11 @@
 
     <details class="picker" id="registry-picker">
       <summary class="picker__button" aria-label="Switch registry">
-        <span class="dot dot--{{.Current.State}}" aria-hidden="true"></span>
+        <span class="dot dot--{{.Current.State}}"
+              hx-get="{{url .BasePath (printf "/x/health/%s" .Current.ID)}}"
+              hx-trigger="load"
+              hx-swap="outerHTML"
+              aria-hidden="true"></span>
         <span class="picker__label">{{.Current.Name}}</span>
         <svg class="picker__chev" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M1 3l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square"/></svg>
       </summary>

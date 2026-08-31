@@ -283,7 +283,7 @@ type layerView struct {
 	Command   string
 	Size      int64
 	Hot       bool
-	Style     template.CSS
+	Grow      float64
 }
 
 type childView struct {
@@ -296,16 +296,20 @@ type childView struct {
 
 type imagePage struct {
 	Layout
-	Repo        string
-	Namespace   string
-	Short       string
-	Ref         string
-	Img         *registry.Image
-	Cfg         *registry.ImageConfig
-	Created     time.Time
-	Platforms   []string
-	Layers      []layerView
-	LayerBytes  int64
+	Repo       string
+	Namespace  string
+	Short      string
+	Ref        string
+	Img        *registry.Image
+	Cfg        *registry.ImageConfig
+	Created    time.Time
+	Platforms  []string
+	Layers     []layerView
+	LayerCSS   template.CSS
+	LayerBytes int64
+	// LayersFrom names the platform the layer breakdown belongs to. An index
+	// has no layers of its own, so a representative child stands in for it.
+	LayersFrom  string
 	Children    []childView
 	Env         []KV
 	Labels      []KV
@@ -372,8 +376,27 @@ func (s *Server) buildImagePage(reg config.Registry, repo, ref string, img *regi
 		page.Labels = sortedKV(img.Config.Labels)
 	}
 
-	page.Layers = layerViews(img.Layers)
-	for _, l := range img.Layers {
+	// An index carries no layers of its own. Falling back to a representative
+	// platform keeps the layer breakdown available for multi-arch images,
+	// which are the common case rather than the exception.
+	layers := img.Layers
+	if len(layers) == 0 && img.IsIndex {
+		if child := representativeChild(img); child != nil {
+			layers = child.Resolved.Layers
+			page.LayersFrom = child.Platform.String()
+			if page.Cfg == nil {
+				page.Cfg = child.Resolved.Config
+				if page.Cfg != nil {
+					page.Env = splitEnv(page.Cfg.Env)
+					page.Labels = sortedKV(page.Cfg.Labels)
+				}
+			}
+		}
+	}
+
+	page.Layers = layerViews(layers)
+	page.LayerCSS = layerCSS(page.Layers)
+	for _, l := range layers {
 		page.LayerBytes += l.Size
 	}
 
@@ -458,10 +481,48 @@ func layerViews(layers []registry.Layer) []layerView {
 			Command:   l.Command,
 			Size:      l.Size,
 			Hot:       hot[i],
-			Style:     template.CSS(fmt.Sprintf("flex-grow:%.4f", grow)),
+			Grow:      grow,
 		})
 	}
 	return out
+}
+
+// layerCSS renders the segment widths as a stylesheet. They cannot be style
+// attributes: the Content-Security-Policy forbids those, and a nonce only
+// authorises a <style> element. Values are formatted floats, so nothing
+// attacker-controlled reaches the CSS.
+func layerCSS(layers []layerView) template.CSS {
+	if len(layers) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	for _, l := range layers {
+		fmt.Fprintf(&b, ".layerbar__seg[data-layer=\"%d\"]{flex-grow:%.4f}", l.Index, l.Grow)
+	}
+	return template.CSS(b.String())
+}
+
+// representativeChild picks the platform whose layers stand in for an index.
+// linux/amd64 is preferred because it is what most readers are comparing
+// against; otherwise the first child that resolved and is not an attestation.
+func representativeChild(img *registry.Image) *registry.IndexChild {
+	var fallback *registry.IndexChild
+	for i := range img.Children {
+		c := &img.Children[i]
+		if c.Resolved == nil || len(c.Resolved.Layers) == 0 || c.Platform == nil {
+			continue
+		}
+		if c.Platform.OS == "unknown" || c.Platform.Architecture == "unknown" {
+			continue
+		}
+		if c.Platform.OS == "linux" && c.Platform.Architecture == "amd64" {
+			return c
+		}
+		if fallback == nil {
+			fallback = c
+		}
+	}
+	return fallback
 }
 
 // --- delete ------------------------------------------------------------
@@ -587,6 +648,7 @@ func (s *Server) layout(r *http.Request, current config.Registry, title string) 
 		Version:     version.Version,
 		FooterNote:  s.cfg.UI.FooterNote,
 		CurrentPath: joinPath(s.cfg.Server.BasePath, r.URL.RequestURI()),
+		Nonce:       nonceFrom(r.Context()),
 	}
 	if title == s.cfg.UI.Title {
 		l.Title = s.cfg.UI.Title
