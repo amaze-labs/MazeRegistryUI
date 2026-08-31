@@ -1,0 +1,8 @@
+{{define "content"}}
+<section class="errpage">
+  <p class="errpage__code">{{.Code}}</p>
+  <h1 class="errpage__title">{{.Headline}}</h1>
+  <p class="errpage__body">{{.Detail}}</p>
+  <a class="btn" href="{{url .BasePath (printf "/r/%s" .Current.ID)}}">Back to {{.Current.Name}}</a>
+</section>
+{{end}}

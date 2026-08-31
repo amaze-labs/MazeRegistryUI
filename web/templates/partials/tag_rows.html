@@ -1,0 +1,47 @@
+{{define "tag_rows"}}
+{{- if not .Tags}}
+<li class="empty">
+  <p class="empty__title">No tags in this repository</p>
+  <p class="empty__body">The repository exists but every tag has been removed, or the manifests were deleted without a garbage collection run.</p>
+</li>
+{{- else}}
+{{- range .Tags}}
+<li class="row row--tag" data-filter-key="{{.Tag}}"
+    hx-get="{{.SummaryURL}}" hx-trigger="revealed once" hx-swap="outerHTML" hx-target="this">
+  <span class="tag"><a class="row__link" href="{{.Href}}">{{.Tag}}</a></span>
+  <span class="cell cell--platforms"><span class="skeleton skeleton--md"></span></span>
+  <span class="cell ta-r"><span class="skeleton skeleton--sm"></span></span>
+  <span class="cell ta-r"><span class="skeleton skeleton--sm"></span></span>
+  <span class="cell ta-r"><span class="skeleton skeleton--sm"></span></span>
+</li>
+{{- end}}
+{{- if .HasMore}}
+<li class="row row--more">
+  <button class="loadmore" type="button" hx-get="{{.MoreURL}}" hx-target="closest li" hx-swap="outerHTML">Load more tags</button>
+</li>
+{{- end}}
+{{- end}}
+{{end}}
+
+{{define "tag_row"}}
+<li class="row row--tag{{if .Sum.Err}} is-degraded{{end}}" data-filter-key="{{.Tag}}">
+  <span class="tag">
+    <a class="row__link" href="{{.Href}}">{{.Tag}}</a>
+    {{if .Sum.IsIndex}}<span class="chip chip--index" title="Multi-platform image index">index</span>{{end}}
+  </span>
+  {{- if .Sum.Err}}
+  <span class="cell cell--platforms" colspan="4"><span class="chip chip--err" title="{{.Sum.Err}}">unreadable</span></span>
+  <span class="cell ta-r">—</span><span class="cell ta-r">—</span><span class="cell ta-r">—</span>
+  {{- else}}
+  <span class="cell cell--platforms">
+    {{- range .Sum.Platforms}}<span class="plat">{{.}}</span>{{end -}}
+    {{- if not .Sum.Platforms}}<span class="mono-dim">—</span>{{end -}}
+  </span>
+  <span class="cell ta-r" data-label="Size">{{bytes .Sum.Size}}</span>
+  <span class="cell ta-r" data-label="Pushed"><time datetime="{{iso .Sum.Created}}" title="{{full .Sum.Created}}">{{since .Sum.Created}}</time></span>
+  <span class="cell ta-r cell--digest" data-label="Digest">
+    <button class="copy" type="button" data-copy="{{.Sum.Digest}}" title="Copy {{.Sum.Digest}}">{{short .Sum.Digest}}</button>
+  </span>
+  {{- end}}
+</li>
+{{end}}

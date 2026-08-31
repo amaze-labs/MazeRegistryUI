@@ -1,0 +1,36 @@
+{{define "catalog_rows"}}
+{{- if not .Repos}}
+<li class="empty">
+  <p class="empty__title">{{if .Query}}No repository matches “{{.Query}}”{{else}}This registry has no repositories yet{{end}}</p>
+  <p class="empty__body">{{if .Query}}Clear the filter to see all {{.Total}} repositories.{{else}}Push an image to see it listed here.{{end}}</p>
+</li>
+{{- else}}
+{{- range .Repos}}
+<li class="row row--repo">
+  <a class="row__link" href="{{.Href}}">
+    <span class="repo">
+      {{- if .Namespace}}<span class="repo__ns">{{.Namespace}}/</span>{{end -}}
+      <span class="repo__name">{{.Short}}</span>
+    </span>
+  </a>
+  <span class="row__tags"
+        hx-get="{{.CountURL}}"
+        hx-trigger="revealed"
+        hx-swap="outerHTML"><span class="skeleton skeleton--sm"></span></span>
+</li>
+{{- end}}
+{{- if .HasMore}}
+<li class="row row--more">
+  <button class="loadmore" type="button"
+          hx-get="{{.MoreURL}}"
+          hx-trigger="click"
+          hx-target="closest li"
+          hx-swap="outerHTML">
+    Load more <span class="mono-dim">({{sub .Total .Shown}} remaining)</span>
+  </button>
+</li>
+{{- end}}
+{{- end}}
+{{end}}
+
+{{define "repo_count"}}<span class="row__tags">{{if .Err}}<span class="chip chip--err" title="{{.Err}}">error</span>{{else}}<span class="count">{{.Count}}</span>{{end}}</span>{{end}}

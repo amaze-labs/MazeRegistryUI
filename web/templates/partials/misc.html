@@ -1,0 +1,8 @@
+{{define "banner"}}
+<div class="banner banner--{{.Kind}}" role="alert">
+  <strong class="banner__title">{{.Title}}</strong>
+  <span class="banner__body">{{.Body}}</span>
+</div>
+{{end}}
+
+{{define "health_dot"}}<span class="dot dot--{{.State}}" title="{{.Message}}" aria-hidden="true"></span>{{end}}
