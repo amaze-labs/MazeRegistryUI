@@ -1,0 +1,44 @@
+# MazeRegistryUI — example configuration for the bundled compose stack.
+#
+# Registries are declared here and nowhere else: the UI cannot add or edit
+# them at runtime, so this file is the complete list of what is browsable.
+# Never commit real credentials; use ${VAR} references or *_env fields.
+
+server:
+  addr: ":8080"
+  # Serve under a sub-path when behind a reverse proxy, e.g. "/registry".
+  base_path: ""
+  access_log: true
+  log_level: info
+
+ui:
+  title: MazeRegistryUI
+  # auto follows the visitor's system preference; dark or light pin it.
+  theme: auto
+  catalog_page_size: 50
+  tag_page_size: 50
+  show_pull_command: true
+  # default_registry: local
+
+registries:
+  - id: local
+    name: Local registry
+    url: http://registry:5000
+    description: Bundled Distribution 3 instance
+    # The address people actually pull from, when it differs from the one the
+    # UI uses to reach the registry.
+    pull_host: localhost:5000
+    delete_enabled: true
+    auth:
+      type: none
+
+  # A second registry, to show the picker with more than one entry.
+  # - id: production
+  #   name: Production
+  #   url: https://registry.example.com
+  #   description: Release images
+  #   delete_enabled: false
+  #   auth:
+  #     type: basic
+  #     username: ci-reader
+  #     password_env: PROD_REGISTRY_PASSWORD

@@ -4,7 +4,8 @@
 # ---------------
 # Nothing is hardcoded here. Create a `.env` file next to this one (git-ignored)
 # holding the credentials; Compose loads `.env` from this directory
-# automatically and substitutes them below. The UI's config file (deploy/config.yaml) references
+# automatically and substitutes them below. Once deploy/config.yaml points at a protected
+# registry, its config references
 # the same variable names, so a credential only ever exists in `.env` and in the
 # process environment - never in an image layer and never in git.
 #
@@ -56,7 +57,9 @@ services:
       - "8080:8080"
     environment:
       MRUI_CONFIG: /etc/mazeregistryui/config.yaml
-      # Consumed by deploy/config.yaml through ${VAR} expansion.
+      # The bundled registry is anonymous, so deploy/config.yaml needs no
+      # credentials. Pass them here once you point it at a protected registry
+      # and reference them from the config with ${MRUI_REGISTRY_USERNAME}.
       MRUI_REGISTRY_USERNAME: ${MRUI_REGISTRY_USERNAME:-}
       MRUI_REGISTRY_PASSWORD: ${MRUI_REGISTRY_PASSWORD:-}
     volumes:

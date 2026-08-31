@@ -34,16 +34,24 @@ services:
       MRUI_GHCR_USERNAME: ${MRUI_GHCR_USERNAME:?set MRUI_GHCR_USERNAME in .env}
       MRUI_GHCR_PASSWORD: ${MRUI_GHCR_PASSWORD:?set MRUI_GHCR_PASSWORD in .env}
     volumes:
-      # Example config referencing the two registries above, e.g.
+      # Example config referencing the two registries above. Credentials belong
+      # under `auth:` — the loader rejects unknown keys, so a stray top-level
+      # `username:` is a startup failure, not a warning.
       #   registries:
-      #     - name: harbor
+      #     - id: harbor
+      #       name: Harbor
       #       url: https://harbor.example.com
-      #       username: ${MRUI_HARBOR_USERNAME}
-      #       password: ${MRUI_HARBOR_PASSWORD}
-      #     - name: ghcr
+      #       auth:
+      #         type: basic
+      #         username: ${MRUI_HARBOR_USERNAME}
+      #         password: ${MRUI_HARBOR_PASSWORD}
+      #     - id: ghcr
+      #       name: GitHub Container Registry
       #       url: https://ghcr.io
-      #       username: ${MRUI_GHCR_USERNAME}
-      #       password: ${MRUI_GHCR_PASSWORD}
+      #       auth:
+      #         type: basic
+      #         username: ${MRUI_GHCR_USERNAME}
+      #         password: ${MRUI_GHCR_PASSWORD}
       - ./deploy/config.yaml:/etc/mazeregistryui/config.yaml:ro
     networks:
       - mazenet
