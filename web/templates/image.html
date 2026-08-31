@@ -122,6 +122,15 @@
 </div>
 {{end}}
 
+{{if .Annotations}}
+<section class="panel">
+  <h2 class="panel__title">Annotations<span class="panel__hint">{{len .Annotations}} &middot; on the manifest</span></h2>
+  <ul class="envlist">
+    {{range .Annotations}}<li><span class="envlist__k">{{.Key}}</span><span class="envlist__v">{{.Value}}</span></li>{{end}}
+  </ul>
+</section>
+{{end}}
+
 <details class="raw">
   <summary class="raw__summary">Raw manifest<span class="panel__hint">{{.Img.MediaType}}</span></summary>
   <pre class="raw__pre"><code>{{.RawManifest}}</code></pre>

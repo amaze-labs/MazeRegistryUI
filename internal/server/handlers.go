@@ -313,6 +313,7 @@ type imagePage struct {
 	Children    []childView
 	Env         []KV
 	Labels      []KV
+	Annotations []KV
 	RawManifest string
 	PullCommand string
 	ShowPull    bool
@@ -436,6 +437,7 @@ func (s *Server) buildImagePage(reg config.Registry, repo, ref string, img *regi
 		}.String()}
 	}
 
+	page.Annotations = sortedKV(img.Annotations)
 	page.RawManifest = prettyJSON(img.RawManifest)
 	page.PullCommand = pullCommand(reg.PullTarget(), repo, ref)
 	return page
