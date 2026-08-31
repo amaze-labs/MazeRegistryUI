@@ -10,6 +10,15 @@
 <link rel="stylesheet" href="{{asset .BasePath "/static/app.css"}}?v={{.Asset}}">
 <link rel="icon" href="{{asset .BasePath "/static/icon.svg"}}" type="image/svg+xml">
 <script src="{{asset .BasePath "/static/theme.js"}}?v={{.Asset}}"></script>
+<noscript>
+  <!-- Links and navigation work without scripting, but the lazily loaded
+       cells never arrive, so their placeholders must not shimmer forever. -->
+  <style nonce="{{.Nonce}}">
+    .skeleton { width: auto; height: auto; background: none; animation: none; color: var(--ink-faint); }
+    .skeleton::before { content: "\2014"; }
+    .spinner, .loadmore { display: none; }
+  </style>
+</noscript>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
