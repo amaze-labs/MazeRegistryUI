@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 /* MazeRegistryUI — the small amount of behaviour HTMX does not cover.
    Everything here is progressive: with JavaScript disabled the pages still
    navigate, only the conveniences (copy, filter, highlight) go away. */

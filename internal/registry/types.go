@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Package registry implements a client for the OCI Distribution Specification
 // v1.1 as served by Distribution 3.x registries. Legacy Docker manifest
 // schema 1 is intentionally not supported.

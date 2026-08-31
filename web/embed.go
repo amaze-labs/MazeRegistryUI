@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Package web holds the embedded frontend assets: HTML templates, stylesheet,
 // fonts and the HTMX runtime. Everything ships inside the binary so a
 // deployment is a single file with no external CDN dependency.

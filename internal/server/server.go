@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Package server wires the HTTP layer: routing, template rendering and the
 // per-registry clients. The browser never talks to a registry directly, so
 // credentials stay on this side and CORS never enters the picture.

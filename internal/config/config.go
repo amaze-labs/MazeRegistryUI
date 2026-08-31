@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Package config loads and validates the MazeRegistryUI configuration file.
 //
 // Configuration is file-only by design: registries cannot be added at runtime

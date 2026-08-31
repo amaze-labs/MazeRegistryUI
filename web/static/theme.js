@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 /* Resolves the theme before first paint so the page never flashes the wrong
    one. Loaded synchronously in <head> on purpose: a deferred script would run
    after the first paint and the flash is exactly what we are avoiding. */
