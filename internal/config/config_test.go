@@ -768,3 +768,86 @@ func TestDeployConfigExampleLoads(t *testing.T) {
 		t.Fatalf("the shipped example configuration at %s does not load: %v", path, err)
 	}
 }
+
+func TestParseEmptyDocument(t *testing.T) {
+	tests := []struct{ name, raw string }{
+		{name: "empty file", raw: ""},
+		{name: "comments only", raw: "# nothing here\n"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if msg := parseErr(t, tc.raw); !strings.Contains(msg, "empty") {
+				t.Fatalf("error %q does not say the file is empty", msg)
+			}
+		})
+	}
+}
+
+// Expansion walks the parsed document, so a reference inside a comment is not
+// a reference at all and cannot make startup fail.
+func TestEnvReferenceInACommentIsIgnored(t *testing.T) {
+	cfg := parseOK(t, `
+# see ${MRUI_TEST_ONLY_IN_A_COMMENT} for the production value
+registries:
+  - name: r
+    url: https://a.example.com
+`)
+	if len(cfg.Registries) != 1 {
+		t.Fatalf("registries = %+v", cfg.Registries)
+	}
+}
+
+// A secret is substituted into a scalar node, not into the YAML text, so
+// characters that would otherwise break the document survive intact.
+func TestExpandedSecretsWithYAMLMetacharacters(t *testing.T) {
+	tests := []struct{ name, value string }{
+		{name: "colon and space", value: "pa: ss"},
+		{name: "double quote", value: `pa"ss`},
+		{name: "single quote", value: "pa'ss"},
+		{name: "hash", value: "pa#ss"},
+		{name: "newline", value: "pa\nss"},
+		{name: "leading dash", value: "-password"},
+		{name: "braces", value: "{pass}"},
+		{name: "looks like a number", value: "0123"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("MRUI_TEST_SECRET", tc.value)
+			cfg := parseOK(t, `
+registries:
+  - name: r
+    url: https://a.example.com
+    auth:
+      type: basic
+      username: alice
+      password: ${MRUI_TEST_SECRET}
+`)
+			if got := cfg.Registries[0].Auth.Password; got != tc.value {
+				t.Fatalf("password = %q, want %q", got, tc.value)
+			}
+		})
+	}
+}
+
+func TestUnsetVariablesAreReportedOnce(t *testing.T) {
+	msg := parseErr(t, `
+ui:
+  title: ${MRUI_TEST_SAME_MISSING}
+  footer_note: ${MRUI_TEST_SAME_MISSING}
+registries:
+  - name: r
+    url: https://a.example.com
+`)
+	if got := strings.Count(msg, "MRUI_TEST_SAME_MISSING"); got != 1 {
+		t.Fatalf("the missing variable is named %d times, want 1:\n%s", got, msg)
+	}
+}
+
+func TestParseNonMappingDocument(t *testing.T) {
+	// A list at the root decodes into nothing useful; the decoder must say so
+	// rather than silently producing an empty configuration.
+	msg := parseErr(t, "- a\n- b\n")
+	if !strings.Contains(msg, "parse config") && !strings.Contains(msg, "empty") {
+		t.Fatalf("error %q neither reports a parse failure nor an empty document", msg)
+	}
+}
