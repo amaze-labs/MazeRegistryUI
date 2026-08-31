@@ -121,6 +121,7 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("POST /x/theme", s.handleTheme)
 
 	var h http.Handler = mux
+	h = s.compress(h)
 	h = s.securityHeaders(h)
 	if s.cfg.Server.AccessLog {
 		h = s.accessLog(h)
