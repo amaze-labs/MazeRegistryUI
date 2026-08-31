@@ -110,6 +110,11 @@ type Image struct {
 	IsIndex    bool
 
 	// Single-platform fields, also populated for the selected child of an index.
+	//
+	// ConfigRef is the config blob's descriptor as the manifest declares it. It
+	// is set even when the blob itself could not be fetched, so size accounting
+	// never depends on whether Config was resolved.
+	ConfigRef    Descriptor
 	Config       *ImageConfig
 	Layers       []Layer
 	History      []HistoryEntry

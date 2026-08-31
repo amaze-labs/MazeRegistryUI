@@ -92,7 +92,10 @@ type client struct {
 	hc     *http.Client
 	cache  *ttlCache
 	tokens *tokenCache
-	log    *slog.Logger
+	// challenges lets a repeat request authenticate without first being told
+	// to, which halves the request count against a bearer-auth registry.
+	challenges *challengeCache
+	log        *slog.Logger
 }
 
 var _ Client = (*client)(nil)
@@ -141,11 +144,12 @@ func New(opts Options) (Client, error) {
 	}
 
 	return &client{
-		opts:   opts,
-		base:   base,
-		cache:  newTTLCache(defaultCacheEntries),
-		tokens: newTokenCache(),
-		log:    slog.Default(),
+		opts:       opts,
+		base:       base,
+		cache:      newTTLCache(defaultCacheEntries),
+		tokens:     newTokenCache(),
+		challenges: newChallengeCache(),
+		log:        slog.Default(),
 		hc: &http.Client{
 			Transport:     transport,
 			Timeout:       opts.Timeout,
@@ -258,6 +262,26 @@ func digestOf(b []byte) string {
 // the registry answers 401 with a challenge. The response body is left open
 // for the caller to read and drain.
 func (c *client) do(ctx context.Context, method, rawURL, accept string) (*http.Response, error) {
+	scopeKey := authScopeKey(rawURL)
+
+	// If this resource has challenged us before, present a token up front.
+	// Otherwise every request against a bearer registry pays a 401 round trip
+	// to be told something we already know.
+	if known, ok := c.challenges.get(scopeKey); ok {
+		if token, err := c.tokens.token(ctx, c, known); err == nil {
+			resp, err := c.send(ctx, method, rawURL, accept, token)
+			if err != nil {
+				return nil, err
+			}
+			if resp.StatusCode != http.StatusUnauthorized {
+				return resp, nil
+			}
+			// The remembered challenge no longer satisfies the registry —
+			// scopes widen, tokens get revoked — so renegotiate from scratch.
+			drain(resp)
+		}
+	}
+
 	resp, err := c.send(ctx, method, rawURL, accept, "")
 	if err != nil {
 		return nil, err
@@ -273,6 +297,7 @@ func (c *client) do(ctx context.Context, method, rawURL, accept string) (*http.R
 		return resp, nil
 	}
 	drain(resp)
+	c.challenges.put(scopeKey, challenge)
 
 	token, err := c.tokens.token(ctx, c, challenge)
 	if err != nil {
@@ -652,12 +677,17 @@ func (c *client) fetchManifest(ctx context.Context, repo, reference string) (*ma
 		return nil, fmt.Errorf("registry: reading manifest %s:%s: %w", repo, reference, err)
 	}
 
-	digest := strings.TrimSpace(resp.Header.Get("Docker-Content-Digest"))
-	if !isDigest(digest) {
-		// Not every registry sends the header, and a wrong one is worse than
-		// none: the manifest bytes are the authority.
-		digest = digestOf(raw)
+	// The manifest bytes are the authority. Not every registry sends the
+	// header, and one that sends a digest not matching what it served is
+	// either broken or lying — in both cases the computed digest is the one
+	// worth trusting, since it is what a client would pull by.
+	computed := digestOf(raw)
+	if advertised := strings.TrimSpace(resp.Header.Get("Docker-Content-Digest")); isDigest(advertised) && advertised != computed {
+		c.log.Warn("registry: advertised manifest digest does not match its bytes",
+			"registry", c.opts.Name, "repository", repo,
+			"advertised", advertised, "computed", computed)
 	}
+	digest := computed
 
 	fetched := &manifestFetch{
 		Raw:       raw,
@@ -799,9 +829,11 @@ func distinctSize(img *Image, counted map[string]struct{}) int64 {
 		counted[digest] = struct{}{}
 		total += size
 	}
-	if img.Config != nil {
-		add(img.Config.Digest, img.Config.Size)
-	}
+	// Use the descriptor from the manifest rather than the parsed config: a
+	// child whose config blob is unreadable still counted those bytes in its
+	// own total, and an index that skipped them would report itself as smaller
+	// than the sum of its platforms.
+	add(img.ConfigRef.Digest, img.ConfigRef.Size)
 	for _, layer := range img.Layers {
 		add(layer.Digest, layer.Size)
 	}
@@ -810,6 +842,11 @@ func distinctSize(img *Image, counted map[string]struct{}) int64 {
 
 // fillManifest populates the single-platform fields of an image.
 func (c *client) fillManifest(ctx context.Context, img *Image, doc *manifestDoc) {
+	img.ConfigRef = Descriptor{
+		MediaType: doc.Config.MediaType,
+		Digest:    doc.Config.Digest,
+		Size:      doc.Config.Size,
+	}
 	img.Layers = make([]Layer, 0, len(doc.Layers))
 	total := doc.Config.Size
 	for _, l := range doc.Layers {
