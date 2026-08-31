@@ -25,7 +25,8 @@ services:
     pull_policy: always
     restart: unless-stopped
     ports:
-      - "8080:8080"
+      # Override the host port with MRUI_PORT when 8080 is already taken.
+      - "${MRUI_PORT:-8080}:8080"
     environment:
       MRUI_CONFIG: /etc/mazeregistryui/config.yaml
       # Two external registries, credentials injected from .env.

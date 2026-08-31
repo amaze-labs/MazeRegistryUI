@@ -133,8 +133,10 @@ anonymous token service — see [How authentication is chosen](#how-authenticati
 
 Two mechanisms, both keeping credentials out of the file and out of git.
 
-**`${VAR}` expansion** runs over the whole document before it is parsed, so it
-works in any string field:
+**`${VAR}` expansion** runs over every scalar of the parsed document, so it
+works in any string field. Expanding after parsing rather than before means
+references inside comments are left alone, and a password containing a colon,
+a quote or a newline cannot corrupt the document it lands in:
 
 ```yaml
 registries:
@@ -156,6 +158,14 @@ ui:
 A `${VAR}` with no fallback and no value in the environment is a startup
 error, listing every missing variable at once. This is deliberate:
 authenticating with a silently empty password is worse than not starting.
+
+One YAML detail: inside a flow mapping the `}` closes the mapping, so a
+reference there has to be quoted. Block style, which the examples above use,
+needs no quoting.
+
+```yaml
+auth: { type: basic, username: u, password: "${HARBOR_PASSWORD}" }   # quoted
+```
 
 **`password_env` / `token_env`** name the variable instead of interpolating it.
 The effect is the same; the difference is that the config file then contains

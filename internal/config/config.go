@@ -7,6 +7,7 @@
 package config
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"net/url"
@@ -117,13 +118,34 @@ func Load(path string) (*Config, error) {
 // Parse builds a Config from YAML bytes. Exported so tests and callers that
 // hold the document in memory do not have to touch the filesystem.
 func Parse(raw []byte) (*Config, error) {
-	expanded, err := expandEnv(string(raw))
+	// Expansion happens on the parsed document rather than the raw text. A
+	// textual pass would also rewrite ${VAR} inside comments, and a password
+	// containing a colon or a quote would corrupt the document it was
+	// substituted into. Walking scalars avoids both.
+	var root yaml.Node
+	if err := yaml.Unmarshal(raw, &root); err != nil {
+		return nil, fmt.Errorf("parse config: %w", err)
+	}
+	if root.Kind == 0 || len(root.Content) == 0 {
+		return nil, errors.New("config file is empty")
+	}
+
+	var missing []string
+	expandNode(&root, &missing)
+	if len(missing) > 0 {
+		return nil, fmt.Errorf("config references unset environment variables: %s",
+			strings.Join(dedupe(missing), ", "))
+	}
+
+	// Round-trip so the decoder can reject unknown keys, which only a Decoder
+	// can do; Node.Decode has no equivalent.
+	expanded, err := yaml.Marshal(&root)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("parse config: %w", err)
 	}
 
 	var cfg Config
-	dec := yaml.NewDecoder(strings.NewReader(expanded))
+	dec := yaml.NewDecoder(bytes.NewReader(expanded))
 	dec.KnownFields(true) // a typo in a key is a configuration bug, not a default
 	if err := dec.Decode(&cfg); err != nil {
 		return nil, fmt.Errorf("parse config: %w", err)
@@ -142,13 +164,30 @@ func Parse(raw []byte) (*Config, error) {
 // envRef matches ${VAR} and ${VAR:-fallback}.
 var envRef = regexp.MustCompile(`\$\{([A-Za-z_][A-Za-z0-9_]*)(?::-([^}]*))?\}`)
 
-// expandEnv substitutes ${VAR} references before the YAML is parsed, so a
-// secret can be injected into any string field. An unset variable without a
-// fallback is an error rather than an empty string: silently authenticating
-// with an empty password is worse than refusing to start.
-func expandEnv(s string) (string, error) {
-	var missing []string
-	out := envRef.ReplaceAllStringFunc(s, func(m string) string {
+// expandNode substitutes ${VAR} references in every scalar of the document, so
+// a secret can be injected into any field. Names of variables that are unset
+// and carry no fallback are collected rather than substituted as empty
+// strings: silently authenticating with an empty password is worse than
+// refusing to start.
+func expandNode(n *yaml.Node, missing *[]string) {
+	if n.Kind == yaml.ScalarNode {
+		expanded := expandString(n.Value, missing)
+		if expanded != n.Value {
+			n.Value = expanded
+			// The original style may no longer be able to hold the value — an
+			// expanded secret can contain anything — so let the emitter pick.
+			n.Style = 0
+			n.Tag = "!!str"
+		}
+		return
+	}
+	for _, child := range n.Content {
+		expandNode(child, missing)
+	}
+}
+
+func expandString(s string, missing *[]string) string {
+	return envRef.ReplaceAllStringFunc(s, func(m string) string {
 		g := envRef.FindStringSubmatch(m)
 		name, fallback := g[1], g[2]
 		if v, ok := os.LookupEnv(name); ok {
@@ -157,13 +196,21 @@ func expandEnv(s string) (string, error) {
 		if strings.Contains(m, ":-") {
 			return fallback
 		}
-		missing = append(missing, name)
+		*missing = append(*missing, name)
 		return ""
 	})
-	if len(missing) > 0 {
-		return "", fmt.Errorf("config references unset environment variables: %s", strings.Join(missing, ", "))
+}
+
+func dedupe(in []string) []string {
+	seen := make(map[string]bool, len(in))
+	out := make([]string, 0, len(in))
+	for _, s := range in {
+		if !seen[s] {
+			seen[s] = true
+			out = append(out, s)
+		}
 	}
-	return out, nil
+	return out
 }
 
 func (c *Config) applyDefaults() {

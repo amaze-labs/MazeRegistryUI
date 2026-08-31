@@ -54,7 +54,8 @@ services:
     depends_on:
       - registry
     ports:
-      - "8080:8080"
+      # Override the host port with MRUI_PORT when 8080 is already taken.
+      - "${MRUI_PORT:-8080}:8080"
     environment:
       MRUI_CONFIG: /etc/mazeregistryui/config.yaml
       # The bundled registry is anonymous, so deploy/config.yaml needs no
