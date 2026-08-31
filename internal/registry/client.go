@@ -1038,10 +1038,13 @@ func hasRel(rel, want string) bool {
 // --- ordering ---------------------------------------------------------------
 
 // sortTags orders tags the way a human reads a version list: "latest" first,
-// then a natural ordering in which runs of digits compare as numbers, so
-// v1.10.0 lands after v1.9.0 instead of before it. Tags that the natural rules
-// consider equal fall back to plain lexical order, which keeps the result
-// deterministic for anything that is not version-shaped at all.
+// then newest version first. The ordering within a run of digits is natural —
+// digits compare as numbers, so 1.10.0 is greater than 1.9.0 rather than
+// sorting before it lexically — and the result is then reversed, because a
+// repository with fifty tags is one where the current release must not be on
+// the last page. Tags the natural rules consider equal fall back to reverse
+// lexical order, which keeps the result deterministic for anything that is not
+// version-shaped at all.
 func sortTags(tags []string) {
 	slices.SortStableFunc(tags, func(a, b string) int {
 		switch {
@@ -1053,9 +1056,9 @@ func sortTags(tags []string) {
 			return 1
 		}
 		if c := naturalCompare(a, b); c != 0 {
-			return c
+			return -c
 		}
-		return strings.Compare(a, b)
+		return strings.Compare(b, a)
 	})
 }
 

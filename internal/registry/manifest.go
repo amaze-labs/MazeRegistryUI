@@ -256,12 +256,22 @@ func sortedKeys(m map[string]json.RawMessage) []string {
 // cleanCommand turns a history created_by string into something readable.
 // Classic `docker build` records a shell wrapper around every instruction; the
 // #(nop) marker means the instruction produced no filesystem change and the
-// wrapper is pure noise. BuildKit records are already legible and pass through
-// untouched.
+// wrapper is pure noise. BuildKit keeps the Dockerfile instruction but still
+// writes the shell wrapper and stamps every entry with a trailing marker, so
+// both writers need unwrapping before the command reads like the line someone
+// actually wrote.
 func cleanCommand(s string) string {
 	s = strings.TrimSpace(s)
 	if s == "" {
 		return ""
+	}
+	// BuildKit stamps every record; the marker says nothing about the build.
+	if rest, ok := strings.CutSuffix(s, "# buildkit"); ok {
+		s = strings.TrimSpace(rest)
+	}
+	// BuildKit form: "RUN /bin/sh -c apk add curl" is just "RUN apk add curl".
+	if rest, ok := strings.CutPrefix(s, "RUN /bin/sh -c "); ok {
+		s = "RUN " + strings.TrimSpace(rest)
 	}
 	if rest, ok := strings.CutPrefix(s, "/bin/sh -c #(nop) "); ok {
 		return strings.TrimSpace(rest)
