@@ -1,0 +1,97 @@
+# Production-ish deployment: the UI only, pulling a published image and pointing
+# at registries that live somewhere else.
+#
+#   docker compose -f compose.prod.yaml up -d
+#
+# Secrets pattern
+# ---------------
+# Create a `.env` next to this file (git-ignored) with one credential pair per
+# external registry. The `:?` suffix makes Compose refuse to start rather than
+# silently substituting an empty password:
+#
+#   MRUI_HARBOR_USERNAME=robot$mazeregistryui
+#   MRUI_HARBOR_PASSWORD=...
+#   MRUI_GHCR_USERNAME=amaze-labs
+#   MRUI_GHCR_PASSWORD=ghp_...
+#
+# deploy/config.yaml resolves these by name, so the values never reach an image
+# layer, a compose file or git.
+
+name: mazeregistryui
+
+services:
+  mazeregistryui:
+    image: ghcr.io/amaze-labs/mazeregistryui:latest
+    pull_policy: always
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      MRUI_CONFIG: /etc/mazeregistryui/config.yaml
+      # Two external registries, credentials injected from .env.
+      MRUI_HARBOR_USERNAME: ${MRUI_HARBOR_USERNAME:?set MRUI_HARBOR_USERNAME in .env}
+      MRUI_HARBOR_PASSWORD: ${MRUI_HARBOR_PASSWORD:?set MRUI_HARBOR_PASSWORD in .env}
+      MRUI_GHCR_USERNAME: ${MRUI_GHCR_USERNAME:?set MRUI_GHCR_USERNAME in .env}
+      MRUI_GHCR_PASSWORD: ${MRUI_GHCR_PASSWORD:?set MRUI_GHCR_PASSWORD in .env}
+    volumes:
+      # Example config referencing the two registries above, e.g.
+      #   registries:
+      #     - name: harbor
+      #       url: https://harbor.example.com
+      #       username: ${MRUI_HARBOR_USERNAME}
+      #       password: ${MRUI_HARBOR_PASSWORD}
+      #     - name: ghcr
+      #       url: https://ghcr.io
+      #       username: ${MRUI_GHCR_USERNAME}
+      #       password: ${MRUI_GHCR_PASSWORD}
+      - ./deploy/config.yaml:/etc/mazeregistryui/config.yaml:ro
+    networks:
+      - mazenet
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    # Same distroless constraint as the dev stack: no shell in the image, so the
+    # health probe must come from outside. Behind Traefik the router's own
+    # health check does the job; standalone, run the `ui-probe` sidecar from
+    # compose.yaml, or on Kubernetes use an httpGet probe on /healthz.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 256M
+    # --- TLS termination with Traefik (uncomment to enable) -----------------
+    # Requires a Traefik instance attached to the same network, with a
+    # `websecure` entrypoint and a `letsencrypt` certificate resolver.
+    # Drop the `ports:` block above when using Traefik - the UI should only be
+    # reachable through the proxy.
+    #
+    # labels:
+    #   - "traefik.enable=true"
+    #   - "traefik.docker.network=mazenet"
+    #   - "traefik.http.routers.mazeregistryui.rule=Host(`registry-ui.example.com`)"
+    #   - "traefik.http.routers.mazeregistryui.entrypoints=websecure"
+    #   - "traefik.http.routers.mazeregistryui.tls=true"
+    #   - "traefik.http.routers.mazeregistryui.tls.certresolver=letsencrypt"
+    #   - "traefik.http.services.mazeregistryui.loadbalancer.server.port=8080"
+    #   - "traefik.http.services.mazeregistryui.loadbalancer.healthcheck.path=/healthz"
+    #   - "traefik.http.services.mazeregistryui.loadbalancer.healthcheck.interval=30s"
+    #   # Redirect plain HTTP to HTTPS.
+    #   - "traefik.http.routers.mazeregistryui-http.rule=Host(`registry-ui.example.com`)"
+    #   - "traefik.http.routers.mazeregistryui-http.entrypoints=web"
+    #   - "traefik.http.routers.mazeregistryui-http.middlewares=to-https"
+    #   - "traefik.http.middlewares.to-https.redirectscheme.scheme=https"
+
+networks:
+  mazenet:
+    driver: bridge
+    # Set to `external: true` if Traefik already owns this network.
+    # external: true

@@ -1,0 +1,151 @@
+name: Release
+
+# Any tag pushed to the repository produces a published image. Semver tags
+# additionally move the floating `latest`, `X.Y` and `X` tags; a non-semver tag
+# (a release candidate, a date stamp, a customer build) is published under its
+# own name only, so `latest` never points at something unexpected.
+on:
+  push:
+    tags:
+      - '*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  IMAGE: ghcr.io/amaze-labs/mazeregistryui
+
+jobs:
+  image:
+    name: Publish multi-arch image
+    runs-on: ubuntu-latest
+    # Belt and braces: `on.push.tags` already prevents branch pushes.
+    if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Derive image tags and labels
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+          # `latest` is attached only when the tag parses as semver.
+          flavor: |
+            latest=auto
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}},enable=${{ !startsWith(github.ref, 'refs/tags/v0.') }}
+            type=ref,event=tag
+          labels: |
+            org.opencontainers.image.title=MazeRegistryUI
+            org.opencontainers.image.description=A fast, mobile-friendly UI for OCI registries
+
+      - name: Compute build date
+        id: date
+        run: echo "value=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            VERSION=${{ github.ref_name }}
+            COMMIT=${{ github.sha }}
+            BUILD_DATE=${{ steps.date.outputs.value }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Summarise published tags
+        run: |
+          {
+            echo "### Published to GHCR"
+            echo
+            echo '```'
+            echo "${{ steps.meta.outputs.tags }}"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  binaries:
+    name: Release binaries
+    runs-on: ubuntu-latest
+    # Attached binaries and release notes are reserved for semver tags: an
+    # internal or throwaway tag gets an image, not a GitHub release.
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      # Needed to create the GitHub release and upload the assets.
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Full history so `git describe` sees the tag it was triggered by.
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache: true
+
+      - name: Build cross-platform binaries
+        env:
+          VERSION: ${{ github.ref_name }}
+          COMMIT: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          MODULE=github.com/amaze-labs/MazeRegistryUI
+          mkdir -p dist
+          for target in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64; do
+            GOOS="${target%/*}"
+            GOARCH="${target#*/}"
+            out="dist/mazeregistryui_${VERSION}_${GOOS}_${GOARCH}"
+            echo "==> building $out"
+            CGO_ENABLED=0 GOOS="$GOOS" GOARCH="$GOARCH" go build \
+              -trimpath \
+              -ldflags="-s -w \
+                -X ${MODULE}/internal/version.Version=${VERSION} \
+                -X ${MODULE}/internal/version.Commit=${COMMIT:0:7} \
+                -X ${MODULE}/internal/version.BuildDate=${BUILD_DATE}" \
+              -o "${out}/mazeregistryui" \
+              ./cmd/mazeregistryui
+            tar -czf "${out}.tar.gz" -C "$out" mazeregistryui
+            rm -rf "$out"
+          done
+          ( cd dist && sha256sum *.tar.gz > checksums.txt )
+          ls -l dist
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          generate_release_notes: true
+          files: |
+            dist/*.tar.gz
+            dist/checksums.txt

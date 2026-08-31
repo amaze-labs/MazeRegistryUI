@@ -1,0 +1,35 @@
+# Compiled binaries
+/mazeregistryui
+/bin/
+/dist/
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test and coverage output
+*.test
+coverage.out
+coverage.html
+*.prof
+
+# Secrets and local overrides
+.env
+.env.*
+!.env.example
+config.local.yaml
+deploy/config.local.yaml
+compose.override.yaml
+
+# Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# NOTE: docs/images/ is intentionally NOT ignored - screenshots are committed.

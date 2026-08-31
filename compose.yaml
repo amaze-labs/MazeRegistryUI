@@ -1,0 +1,117 @@
+# Local demo stack: a throwaway Docker Distribution 3.x registry plus the UI.
+#
+# Secrets pattern
+# ---------------
+# Nothing is hardcoded here. Create a `.env` file next to this one (git-ignored)
+# holding the credentials; Compose loads `.env` from this directory
+# automatically and substitutes them below. The UI's config file (deploy/config.yaml) references
+# the same variable names, so a credential only ever exists in `.env` and in the
+# process environment - never in an image layer and never in git.
+#
+#   MRUI_REGISTRY_USERNAME=...
+#   MRUI_REGISTRY_PASSWORD=...
+#
+# The bundled registry below is anonymous, so both default to empty and the
+# stack comes up with no `.env` at all.
+
+name: mazeregistryui
+
+services:
+  registry:
+    image: registry:3
+    restart: unless-stopped
+    environment:
+      # Required for the UI's "delete tag/manifest" actions to work.
+      REGISTRY_STORAGE_DELETE_ENABLED: "true"
+      REGISTRY_STORAGE_FILESYSTEM_ROOTDIRECTORY: /var/lib/registry
+    volumes:
+      - registry-data:/var/lib/registry
+    # Not published on the host: only the UI needs to reach it, over the
+    # internal network. Uncomment to poke at it with `docker push` directly.
+    # ports:
+    #   - "5000:5000"
+    networks:
+      - mazenet
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+  mazeregistryui:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VERSION: ${VERSION:-dev}
+        COMMIT: ${COMMIT:-unknown}
+        BUILD_DATE: ${BUILD_DATE:-1970-01-01T00:00:00Z}
+    image: mazeregistryui:local
+    restart: unless-stopped
+    depends_on:
+      - registry
+    ports:
+      - "8080:8080"
+    environment:
+      MRUI_CONFIG: /etc/mazeregistryui/config.yaml
+      # Consumed by deploy/config.yaml through ${VAR} expansion.
+      MRUI_REGISTRY_USERNAME: ${MRUI_REGISTRY_USERNAME:-}
+      MRUI_REGISTRY_PASSWORD: ${MRUI_REGISTRY_PASSWORD:-}
+    volumes:
+      - ./deploy/config.yaml:/etc/mazeregistryui/config.yaml:ro
+    networks:
+      - mazenet
+    # Hardening: the binary is static, self-contained and never writes to disk.
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    # Distroless constraint
+    # ---------------------
+    # A Compose/Docker `healthcheck` is executed *inside* the container. The
+    # runtime image is gcr.io/distroless/static-debian12, which has no shell,
+    # no curl and no wget - so `test: ["CMD-SHELL", "curl ...']` resolves to a
+    # missing binary and pins the container to "unhealthy" forever. The probe
+    # therefore has to come from outside the container:
+    #   - Compose: the `ui-probe` sidecar below (curl image, same network)
+    #   - Kubernetes: a plain httpGet probe, no in-container binary needed:
+    #       livenessProbe:  { httpGet: { path: /healthz, port: 8080 } }
+    #       readinessProbe: { httpGet: { path: /healthz, port: 8080 } }
+    # Re-enable an in-container check only if the binary ever grows a
+    # `-healthcheck` self-probe flag (see the TODO in the Dockerfile).
+
+  # External probe for the distroless UI container. Its own health mirrors the
+  # UI's /healthz, so other services can wait on it with
+  # `depends_on: { ui-probe: { condition: service_healthy } }`.
+  ui-probe:
+    image: curlimages/curl:8.11.1
+    restart: unless-stopped
+    depends_on:
+      - mazeregistryui
+    # Idle forever; all the work happens in the healthcheck.
+    command: ["sleep", "infinity"]
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://mazeregistryui:8080/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - mazenet
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  registry-data:
+
+networks:
+  mazenet:
+    driver: bridge

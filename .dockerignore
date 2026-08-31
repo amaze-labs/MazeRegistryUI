@@ -1,0 +1,41 @@
+# VCS
+.git
+.gitignore
+.gitattributes
+.github
+
+# Docs and screenshots (not needed to compile; web assets are embedded from web/)
+docs
+*.md
+LICENSE
+
+# Local / runtime configuration and secrets
+.env
+.env.*
+config.local.yaml
+deploy/config.local.yaml
+
+# Build output
+/dist
+/bin
+mazeregistryui
+coverage.out
+coverage.html
+*.test
+*.out
+*.prof
+
+# Container / compose definitions - never part of the build context
+Dockerfile
+.dockerignore
+compose.yaml
+compose.prod.yaml
+compose.override.yaml
+
+# Editor and OS cruft
+.idea
+.vscode
+.DS_Store
+Thumbs.db
+*.swp
+*~
