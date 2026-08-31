@@ -89,3 +89,23 @@ Scopes in use: `cmd`, `server`, `registry`, `config`, `ui`.
 Maintainers push a tag; `.github/workflows/release.yml` does the rest. See
 [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md#releases-and-tagging) for what each
 kind of tag produces.
+
+## Licensing
+
+The project is under the [GNU General Public License v3.0 or later](LICENSE).
+By opening a pull request you agree that your contribution is licensed under
+those same terms — there is no CLA and no copyright assignment.
+
+New source files carry the identifier at the top, above the package comment
+and separated from it by a blank line so it does not become documentation:
+
+```go
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+// Package foo does ...
+package foo
+```
+
+Vendored third-party files keep their own headers and are listed in
+[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md). Add an entry there before
+bundling anything new, and check the licence is GPLv3-compatible first.

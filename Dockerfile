@@ -61,7 +61,7 @@ ARG BUILD_DATE
 LABEL org.opencontainers.image.title="MazeRegistryUI" \
       org.opencontainers.image.description="Single-binary web UI for browsing OCI / Docker Distribution 3.x registries" \
       org.opencontainers.image.source="https://github.com/amaze-labs/MazeRegistryUI" \
-      org.opencontainers.image.licenses="MIT" \
+      org.opencontainers.image.licenses="GPL-3.0-or-later" \
       org.opencontainers.image.version="${VERSION}" \
       org.opencontainers.image.revision="${COMMIT}" \
       org.opencontainers.image.created="${BUILD_DATE}"

@@ -4,7 +4,7 @@ A single-binary, server-rendered web UI for browsing OCI and Docker registries.
 
 [![CI](https://github.com/amaze-labs/MazeRegistryUI/actions/workflows/ci.yml/badge.svg)](https://github.com/amaze-labs/MazeRegistryUI/actions/workflows/ci.yml)
 [![Go](https://img.shields.io/badge/go-1.25-00ADD8?logo=go&logoColor=white)](https://go.dev/dl/)
-[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![License](https://img.shields.io/badge/license-GPL--3.0--or--later-blue)](LICENSE)
 [![GHCR](https://img.shields.io/badge/ghcr.io-amaze--labs%2Fmazeregistryui-2b3137?logo=github)](https://github.com/amaze-labs/MazeRegistryUI/pkgs/container/mazeregistryui)
 
 MazeRegistryUI exists because the common alternative, `joxit/docker-registry-ui`,
@@ -184,4 +184,12 @@ Full reference, worked examples and troubleshooting:
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+GNU General Public License v3.0 or later — see [LICENSE](LICENSE).
+
+Deploying this as a network service does not by itself oblige you to publish
+changes; the GPL is triggered by distribution, not by use. If you distribute a
+modified build, the modified source must go with it.
+
+Bundled third-party components — htmx (0BSD), IBM Plex Mono (OFL-1.1) and
+gopkg.in/yaml.v3 (MIT and Apache-2.0) — keep their own licences: see
+[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
