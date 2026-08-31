@@ -357,3 +357,57 @@ func (c *client) requestToken(ctx context.Context, ch authChallenge) (string, ti
 	}
 	return value, lifetime, nil
 }
+
+// maxChallengeEntries bounds the challenge cache. One entry per repository in
+// active use is the realistic shape; the bound only guards pathological cases.
+const maxChallengeEntries = 512
+
+// challengeCache remembers the bearer challenge a registry issued for a given
+// resource. Without it every single request spends a round trip rediscovering
+// the same 401, because the token cache can only be consulted once a challenge
+// is in hand — it saves the token request, not the request that provoked it.
+type challengeCache struct {
+	mu sync.Mutex
+	m  map[string]authChallenge
+}
+
+func newChallengeCache() *challengeCache {
+	return &challengeCache{m: make(map[string]authChallenge)}
+}
+
+func (c *challengeCache) get(key string) (authChallenge, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	ch, ok := c.m[key]
+	return ch, ok
+}
+
+func (c *challengeCache) put(key string, ch authChallenge) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if len(c.m) >= maxChallengeEntries {
+		// A challenge is cheap to rediscover, so dropping the lot is a
+		// perfectly good eviction policy here.
+		c.m = make(map[string]authChallenge, maxChallengeEntries)
+	}
+	c.m[key] = ch
+}
+
+// authScopeKey reduces a registry URL to the resource a bearer scope covers,
+// so requests against the same repository share a challenge.
+func authScopeKey(rawURL string) string {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return ""
+	}
+	path := strings.TrimPrefix(u.Path, "/v2/")
+	if path == "" || path == "_catalog" {
+		return path
+	}
+	for _, sep := range []string{"/manifests/", "/blobs/", "/tags/list"} {
+		if i := strings.Index(path, sep); i >= 0 {
+			return path[:i]
+		}
+	}
+	return path
+}
