@@ -26,10 +26,13 @@ func humanBytes(n int64) string {
 			break
 		}
 	}
-	if value >= 100 || value == math.Trunc(value) {
-		return fmt.Sprintf("%.0f %s", value, unit)
+	// Decide on the rounded value, not the raw one: 1025 bytes rounds to 1.0,
+	// and "1.0 KB" is the trailing zero this is meant to avoid.
+	rounded := math.Round(value*10) / 10
+	if rounded >= 100 || rounded == math.Trunc(rounded) {
+		return fmt.Sprintf("%.0f %s", rounded, unit)
 	}
-	return fmt.Sprintf("%.1f %s", value, unit)
+	return fmt.Sprintf("%.1f %s", rounded, unit)
 }
 
 // humanTime renders an absolute timestamp as a compact relative age. Anything

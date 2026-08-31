@@ -41,13 +41,15 @@ func compressible(contentType string) bool {
 // to serve a page economically.
 func (s *Server) compress(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Vary regardless of what this particular request asked for: a cache
+		// must key on the header, and a response stored for a client that did
+		// not offer gzip must not be replayed to one that did.
+		w.Header().Add("Vary", "Accept-Encoding")
+
 		if !strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
 			next.ServeHTTP(w, r)
 			return
 		}
-		// Vary regardless of whether this particular response is compressed:
-		// caches must key on the header, not on what we happened to decide.
-		w.Header().Add("Vary", "Accept-Encoding")
 
 		gw := &gzipResponseWriter{ResponseWriter: w}
 		defer gw.finish()

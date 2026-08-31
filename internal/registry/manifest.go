@@ -280,11 +280,7 @@ func cleanCommand(s string) string {
 		return strings.TrimSpace(rest)
 	}
 	if rest, ok := strings.CutPrefix(s, "/bin/sh -c "); ok {
-		rest = strings.TrimSpace(rest)
-		if rest == "" {
-			return ""
-		}
-		return "RUN " + rest
+		return "RUN " + strings.TrimSpace(rest)
 	}
 	return s
 }
