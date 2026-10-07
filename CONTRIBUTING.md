@@ -86,9 +86,9 @@ Scopes in use: `cmd`, `server`, `registry`, `config`, `ui`.
 
 ## Releases
 
-Maintainers push a tag; `.github/workflows/release.yml` does the rest. See
-[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md#releases-and-tagging) for what each
-kind of tag produces.
+Every push to `main` is released automatically by `.github/workflows/ci.yml`. See
+[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md#releases-and-tagging) for how the
+version is decided.
 
 ## Licensing
 

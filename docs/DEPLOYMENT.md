@@ -652,36 +652,21 @@ graceful.
 
 ## Releases and tagging
 
-Publishing is driven entirely by pushing a git tag; there is no manual step.
+Every push to `main` is a release; there is no manual step. Once the tests
+pass, the `build` job in `.github/workflows/ci.yml`:
 
-```bash
-git tag -a v1.2.3 -m "v1.2.3"
-git push origin v1.2.3
-```
+1. decides the next version from the conventional commits since the last tag
+   (`.github/scripts/next-version.sh`): a breaking change bumps the major, a
+   `feat` the minor, anything else the patch;
+2. publishes a multi-arch (`linux/amd64`, `linux/arm64`) image to
+   `ghcr.io/amaze-labs/mazeregistryui` as `X.Y.Z` and `latest`;
+3. tags the commit `X.Y.Z` (bare semver, no `v` prefix) once the image exists.
 
-What `.github/workflows/release.yml` then does:
+`VERSION`, `COMMIT` and `BUILD_DATE` are stamped into the binary, so
+`mazeregistryui -version` and the UI footer identify exactly what is running.
 
-| Tag pushed | GHCR image tags | Binaries + GitHub release |
-| --- | --- | --- |
-| `v1.2.3` | `1.2.3`, `1.2`, `1`, `latest`, `v1.2.3` | yes |
-| `v0.4.0` | `0.4.0`, `0.4`, `latest`, `v0.4.0` | yes |
-| `rc-2026-02-01`, `customer-x` | the tag name only | no |
-
-- Every tag produces a multi-arch (`linux/amd64`, `linux/arm64`) image on
-  `ghcr.io/amaze-labs/mazeregistryui`.
-- The floating `latest`, `X.Y` and `X` tags move only when the tag parses as
-  semver, so an internal or throwaway tag can never make `latest` point at
-  something unexpected. The bare major tag is skipped for `v0.x` releases,
-  where a major version conveys nothing useful.
-- Tags starting with `v` additionally build binaries for `linux/amd64`,
-  `linux/arm64`, `darwin/amd64` and `darwin/arm64`, tar them up with a
-  `checksums.txt`, and attach them to a GitHub release with generated notes.
-- `VERSION`, `COMMIT` and `BUILD_DATE` are stamped into the binary, so
-  `mazeregistryui -version` and the UI footer identify exactly what is running.
-
-Pushes to `main` and pull requests run `.github/workflows/ci.yml` instead:
-gofmt, `go vet`, `go test -race` with coverage, and a multi-arch image build
-that is never pushed.
+Pull requests run the same gofmt, `go vet`, `go test -race` and multi-arch
+image build, but never publish or tag anything.
 
 ### Upgrading
 
