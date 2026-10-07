@@ -112,6 +112,7 @@ func TestRoutes(t *testing.T) {
 		{name: "tag row fragment", method: "GET", path: "/x/tag/local/team/api?t=latest", wantStatus: 200, wantType: "text/html"},
 		{name: "health fragment", method: "GET", path: "/x/health/local", wantStatus: 200, wantType: "text/html"},
 		{name: "static asset", method: "GET", path: "/static/app.css", wantStatus: 200},
+		{name: "web app manifest", method: "GET", path: "/static/manifest.json", wantStatus: 200},
 		{name: "unknown path", method: "GET", path: "/nope", wantStatus: 404},
 		{name: "unknown static asset", method: "GET", path: "/static/nope.css", wantStatus: 404},
 		{name: "index does not match a longer path", method: "GET", path: "/x", wantStatus: 404},
@@ -211,7 +212,7 @@ func TestSecurityHeaders(t *testing.T) {
 	csp := rec.Header().Get("Content-Security-Policy")
 	for _, directive := range []string{
 		"default-src 'none'", "script-src 'self'", "img-src 'self' data:",
-		"form-action 'self'", "base-uri 'none'", "frame-ancestors 'none'",
+		"form-action 'self'", "base-uri 'none'", "frame-ancestors 'none'", "manifest-src 'self'",
 	} {
 		assertContains(t, csp, directive, "the Content-Security-Policy")
 	}

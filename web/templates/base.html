@@ -9,6 +9,12 @@
 <link rel="preload" href="{{asset .BasePath "/static/fonts/plex-mono-400.woff2"}}" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="{{asset .BasePath "/static/app.css"}}?v={{.Asset}}">
 <link rel="icon" href="{{asset .BasePath "/static/icon.svg"}}" type="image/svg+xml">
+<link rel="icon" href="{{asset .BasePath "/static/icon-192.png"}}" type="image/png" sizes="192x192">
+<link rel="apple-touch-icon" href="{{asset .BasePath "/static/apple-touch-icon.png"}}">
+<link rel="manifest" href="{{asset .BasePath "/static/manifest.json"}}">
+<meta name="theme-color" content="#0a0e13" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#eceff3" media="(prefers-color-scheme: light)">
+<meta name="apple-mobile-web-app-title" content="{{.UITitle}}">
 <script src="{{asset .BasePath "/static/theme.js"}}?v={{.Asset}}"></script>
 <noscript>
   <!-- Links and navigation work without scripting, but the lazily loaded
