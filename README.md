@@ -23,7 +23,7 @@ rejected on purpose.
 ## Screenshots
 
 <p align="center">
-  <img src="docs/images/catalog.png" alt="Catalog grouped by namespace: each repository with its newest tag, a layer strip, size, tag count, platforms and last push" width="900">
+  <img src="docs/images/catalog.png" alt="Catalog with a side rail of namespaces and the rows grouped by namespace: each repository with its newest tag, a layer strip, size, tag count, platforms and last push" width="900">
 </p>
 
 <table>
