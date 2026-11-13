@@ -66,6 +66,7 @@ Fragment endpoints live under `/x/` and return partials rather than pages:
 | `GET /x/reporow/{rid}/{repo...}` | One resolved catalog row: tag count, newest tag, its size, platforms, age and layer strip. |
 | `GET /x/tags/{rid}/{repo...}` | The next page of tag rows. |
 | `GET /x/tag/{rid}/{repo...}` | One resolved tag row. |
+| `GET /x/jump/{rid}?q=` | Live search under the top-bar box: the first matches from the catalog index, highlighted. No registry call once the catalog is listed. |
 | `GET /x/health/{rid}` | Status dot of a registry (header tabs, phone picker, page head). |
 | `POST /x/theme` | Set the theme cookie, redirect back. |
 | `GET /healthz` | Liveness/readiness JSON. |
@@ -221,9 +222,14 @@ of a large registry is drawn at all:
 - **A single namespace, a filter, `?ns=` or `?view=flat`** give the plain
   paginated list instead.
 
+An "expand all / collapse all" button opens or closes every group at once
+(client-side; opening a collapsed group still triggers its first load).
+
 Each row then resolves lazily through `/x/reporow`, under the same
 per-registry semaphore as tag rows: the tag list (for the count), the newest
-tag (`pickLatest` — a version beats `latest`), its `TagSummary`, and the
+tag (`pickLatest` — the first plain version, then a pre-release, then any
+moving tag but `latest`; a natural sort alone would put words such as
+`buildcache` ahead of every number), its `TagSummary`, and the
 image by digest for the layer strip. The summary has just cached that
 manifest under its digest, so the last call is a cache hit.
 

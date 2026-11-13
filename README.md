@@ -47,7 +47,9 @@ rejected on purpose.
   every group; large ones load a group's rows the first time it is opened.
   A flat view and namespace chips are one click away.
 - Instant in-memory search; the full repository list is indexed server-side,
-  so filtering does not re-walk the registry.
+  so filtering does not re-walk the registry. The top-bar box searches live
+  from any page, with the matches highlighted in a drop-down.
+- Expand or collapse every namespace group with one click.
 - Keyboard first: `/` to filter, `j`/`k` to move, `enter` to open, `c` to copy
   the pull command of the selected row.
 - Tag rows that resolve lazily as they scroll into view, bounded by a
