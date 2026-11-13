@@ -652,21 +652,29 @@ graceful.
 
 ## Releases and tagging
 
-Every push to `main` is a release; there is no manual step. Once the tests
-pass, the `build` job in `.github/workflows/ci.yml`:
+Every push to `main` is a release; there is no manual step.
+`.github/workflows/release.yml`:
 
-1. decides the next version from the conventional commits since the last tag
-   (`.github/scripts/next-version.sh`): a breaking change bumps the major, a
-   `feat` the minor, anything else the patch;
-2. publishes a multi-arch (`linux/amd64`, `linux/arm64`) image to
-   `ghcr.io/amaze-labs/mazeregistryui` as `X.Y.Z` and `latest`;
-3. tags the commit `X.Y.Z` (bare semver, no `v` prefix) once the image exists.
+1. runs `verify.yml` first (gofmt, `go vet`, `go test -race`, an image build
+   and smoke test) — a failure stops the release before anything is published;
+2. decides the next version from the commits since the last tag
+   (`.github/scripts/next-version.sh`), applying each one in order: a breaking
+   change (`type!:`) bumps the major, a `feat` the minor, anything else the
+   patch;
+3. publishes a multi-arch (`linux/amd64`, `linux/arm64`) image to
+   `ghcr.io/amaze-labs/mazeregistryui` as `X.Y.Z` and `latest`. Each
+   architecture builds natively on its own runner. When nothing that ends up
+   in the image changed since the previous release (a docs-only push, say),
+   the previous image is retagged instead of rebuilt;
+4. tags the commit `X.Y.Z` (bare semver, no `v` prefix) once the image exists,
+   and publishes a GitHub Release listing the commits.
 
 `VERSION`, `COMMIT` and `BUILD_DATE` are stamped into the binary, so
 `mazeregistryui -version` and the UI footer identify exactly what is running.
+A retagged image keeps reporting the release that built it.
 
-Pull requests run the same gofmt, `go vet`, `go test -race` and multi-arch
-image build, but never publish or tag anything.
+Pull requests run `verify.yml` and a Conventional Commits check on their
+title, but never publish or tag anything.
 
 ### Upgrading
 

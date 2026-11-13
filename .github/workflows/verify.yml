@@ -1,0 +1,123 @@
+name: Verify
+
+# Nothing here publishes anything — it proves the code still formats, vets,
+# passes its tests and builds a working image before a change lands.
+#
+# Pull requests run it directly. On `main` it runs as the first job of
+# release.yml (`workflow_call`), so a red test suite stops the release instead
+# of racing it, and the same checks are not run twice per push.
+on:
+  pull_request:
+  workflow_call: {}
+  workflow_dispatch: {}
+
+# A new push to a pull request cancels the run it superseded. Anything else
+# (a release, a manual run) gets a group of its own and is never cancelled.
+concurrency:
+  group: verify-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  test:
+    name: Format, vet and test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # The Go version comes from go.mod alone, so it cannot drift from what
+      # the module declares. `-race` needs cgo, which the Dockerfile's alpine
+      # builder image lacks — hence the toolchain on the runner.
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Check formatting
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [ -n "$unformatted" ]; then
+            echo "::error::These files are not gofmt-formatted:"
+            echo "$unformatted" | sed 's/^/  /'
+            exit 1
+          fi
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test
+        run: go test -race -covermode=atomic -coverprofile=coverage.out ./...
+
+      - name: Coverage summary
+        run: go tool cover -func=coverage.out | tail -n 1 >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: coverage
+          path: coverage.out
+          if-no-files-found: error
+          retention-days: 14
+
+  image:
+    name: Build and smoke-test the image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      # amd64 only: the release builds arm64 natively on its own runner, and
+      # the Dockerfile cross-compiles, so one architecture proves the build.
+      - name: Build (no push)
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          platforms: linux/amd64
+          push: false
+          load: true
+          tags: mazeregistryui:ci
+          build-args: |
+            VERSION=ci-smoke
+            COMMIT=${{ github.sha }}
+          # A scope of its own: the release must never reuse layers written
+          # by a pull request build.
+          cache-from: type=gha,scope=verify
+          cache-to: type=gha,mode=max,scope=verify
+          provenance: false
+          sbom: false
+
+      # Runs the image the way production does (read-only, no capabilities)
+      # with the example config, whose registry is not there: the UI must still
+      # start and answer /healthz with the version baked in. A mismatch between
+      # the build and the distroless runtime stage would only show up here.
+      - name: Smoke-test the image
+        run: |
+          set -eu
+          docker run -d --name smoke -p 8080:8080 \
+            -v "$PWD/deploy/config.yaml:/etc/mazeregistryui/config.yaml:ro" \
+            --read-only --cap-drop ALL --security-opt no-new-privileges:true \
+            --tmpfs /tmp:size=16m \
+            mazeregistryui:ci
+          for _ in $(seq 1 30); do
+            if body=$(curl -fsS http://127.0.0.1:8080/healthz 2>/dev/null); then
+              echo "$body"
+              case "$body" in
+                *'"version":"ci-smoke"'*) echo "Image starts and reports its version."; exit 0 ;;
+                *) echo "::error::/healthz did not report version ci-smoke"; docker logs smoke; exit 1 ;;
+              esac
+            fi
+            sleep 1
+          done
+          echo "::error::/healthz never answered"
+          docker logs smoke
+          exit 1

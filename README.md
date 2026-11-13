@@ -2,7 +2,7 @@
 
 A single-binary, server-rendered web UI for browsing OCI and Docker registries.
 
-[![CI](https://github.com/amaze-labs/MazeRegistryUI/actions/workflows/ci.yml/badge.svg)](https://github.com/amaze-labs/MazeRegistryUI/actions/workflows/ci.yml)
+[![Release](https://github.com/amaze-labs/MazeRegistryUI/actions/workflows/release.yml/badge.svg)](https://github.com/amaze-labs/MazeRegistryUI/actions/workflows/release.yml)
 [![Go](https://img.shields.io/badge/go-1.25-00ADD8?logo=go&logoColor=white)](https://go.dev/dl/)
 [![License](https://img.shields.io/badge/license-GPL--3.0--or--later-blue)](LICENSE)
 [![GHCR](https://img.shields.io/badge/ghcr.io-amaze--labs%2Fmazeregistryui-2b3137?logo=github)](https://github.com/amaze-labs/MazeRegistryUI/pkgs/container/mazeregistryui)

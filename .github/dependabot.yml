@@ -1,0 +1,56 @@
+version: 2
+updates:
+  # Every action is pinned by SHA; Dependabot is what moves those pins.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Rome"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+    groups:
+      actions-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Go modules. Minor and patch updates land as ONE grouped PR so the weekly
+  # noise stays bounded; majors come in one PR each, on purpose.
+  - package-ecosystem: "gomod"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Rome"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "build"
+      include: "scope"
+    groups:
+      gomod-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Base images of the Dockerfile (golang builder, distroless runtime).
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Rome"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "build"
+      include: "scope"
+    groups:
+      docker-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"

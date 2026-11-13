@@ -41,9 +41,10 @@ make test-race     # go test -race ./...
 make cover         # coverage.out plus the total on stdout
 ```
 
-`make lint` and `make test` are the gate. CI (`.github/workflows/ci.yml`) runs
-the same three things — gofmt, `go vet`, `go test -race` — plus a multi-arch
-image build, so anything that passes locally passes there.
+`make lint` and `make test` are the gate. CI (`.github/workflows/verify.yml`)
+runs the same three things — gofmt, `go vet`, `go test -race` — plus an image
+build and a smoke test of that image, so anything that passes locally passes
+there.
 
 Run `make tidy` if you touched `go.mod`.
 
@@ -86,7 +87,10 @@ Scopes in use: `cmd`, `server`, `registry`, `config`, `ui`.
 
 ## Releases
 
-Every push to `main` is released automatically by `.github/workflows/ci.yml`. See
+Every push to `main` is released automatically by `.github/workflows/release.yml`.
+Pull request titles are checked against Conventional Commits
+(`.github/workflows/check_pr.yml`), since a squash-merge turns the title into
+the commit subject the version is computed from. See
 [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md#releases-and-tagging) for how the
 version is decided.
 
