@@ -1,84 +1,90 @@
 {{define "content"}}
-<section class="pagehead pagehead--image">
+<section class="pagehead">
   <div class="pagehead__main">
     <p class="eyebrow">{{if .Img.IsIndex}}Image index{{else}}Image{{end}}</p>
-    <h1 class="pagehead__title pagehead__title--repo">
-      {{- if .Namespace}}<span class="repo__ns">{{.Namespace}}/</span>{{end -}}
-      {{.Short}}<span class="ref-sep">:</span><span class="ref">{{.Ref}}</span>
+    <h1 class="title title--repo">
+      {{- if .Namespace}}<span class="title__dim">{{.Namespace}}/</span>{{end -}}
+      {{.Short}}<span class="title__dim">{{if hasPrefix .Ref "sha256:"}}@{{else}}:{{end}}</span><span class="title__ref">{{if hasPrefix .Ref "sha256:"}}{{short .Ref}}{{else}}{{.Ref}}{{end}}</span>
     </h1>
     <p class="pagehead__sub">
-      <button class="copy copy--inline" type="button" data-copy="{{.Img.Digest}}" title="Copy {{.Img.Digest}}">{{.Img.Digest}}</button>
+      <button class="copy digest digest--full" type="button" data-copy="{{.Img.Digest}}" title="Copy {{.Img.Digest}}">{{.Img.Digest}}</button>
     </p>
   </div>
-  <dl class="stats">
-    <div class="stat"><dt>Size</dt><dd>{{bytes .Img.TotalSize}}</dd></div>
-    {{if .Created}}<div class="stat"><dt>Created</dt><dd><time datetime="{{iso .Created}}" title="{{full .Created}}">{{since .Created}}</time></dd></div>{{end}}
-    <div class="stat"><dt>{{if .Img.IsIndex}}Platforms{{else}}Layers{{end}}</dt><dd>{{if .Img.IsIndex}}{{len .Platforms}}{{else}}{{len .Img.Layers}}{{end}}</dd></div>
+  <dl class="cart">
+    <div><dt>Size</dt><dd>{{bytes .Img.TotalSize}}</dd></div>
+    {{if .Created}}<div><dt>Created</dt><dd><time datetime="{{iso .Created}}" title="{{full .Created}}">{{since .Created}}</time></dd></div>{{end}}
+    <div><dt>{{if .Img.IsIndex}}Platforms{{else}}Layers{{end}}</dt><dd>{{if .Img.IsIndex}}{{len .Platforms}}{{else}}{{len .Img.Layers}}{{end}}</dd></div>
+    {{if and (not .Img.IsIndex) .Platforms}}<div><dt>Platform</dt><dd>{{index .Platforms 0}}</dd></div>{{end}}
   </dl>
 </section>
 
-{{if .Platforms}}
-<div class="platrow">
-  {{range .Platforms}}<span class="plat plat--lg">{{.}}</span>{{end}}
+{{if .ShowPull}}
+<div class="pull" id="pull">
+  <span class="pull__label">pull</span>
+  <code class="pull__cmd" data-pull-text>{{.PullCommand}}</code>
+  {{if ne .PullCommand .PullByDigest}}
+  <div class="seg seg--inline" role="group" aria-label="Pull by">
+    <button class="seg__opt is-on" type="button" data-pull-cmd="{{.PullCommand}}">by tag</button>
+    <button class="seg__opt" type="button" data-pull-cmd="{{.PullByDigest}}">by digest</button>
+  </div>
+  {{end}}
+  <button class="pull__copy" type="button" data-copy="{{.PullCommand}}">copy</button>
 </div>
 {{end}}
 
-{{if .ShowPull}}
-<div class="pull">
-  <span class="pull__label">pull</span>
-  <code class="pull__cmd">{{.PullCommand}}</code>
-  <button class="copy copy--btn" type="button" data-copy="{{.PullCommand}}" aria-label="Copy pull command">copy</button>
-</div>
-{{end}}
+{{if .Platforms}}{{if .Img.IsIndex}}
+<div class="platrow">{{range .Platforms}}<span class="plat plat--lg">{{.}}</span>{{end}}</div>
+{{end}}{{end}}
 
 {{if .Img.IsIndex}}
 <section class="panel">
-  <h2 class="panel__title">Platform manifests<span class="panel__hint">{{len .Children}} entries</span></h2>
-  <div class="listwrap listwrap--flush">
-    <ul class="list">
-      {{range .Children}}
-      <li class="row row--child{{if .Attestation}} is-muted{{end}}">
-        <span class="tag">
-          {{if .Attestation}}<span class="mono-dim">{{.Platform}}</span><span class="chip">attestation</span>
-          {{else}}<a class="row__link" href="{{.Href}}">{{.Platform}}</a>{{end}}
-        </span>
-        <span class="cell ta-r" data-label="Size">{{bytes .Size}}</span>
-        <span class="cell ta-r cell--digest" data-label="Digest">
-          <button class="copy" type="button" data-copy="{{.Digest}}" title="Copy {{.Digest}}">{{short .Digest}}</button>
-        </span>
-      </li>
-      {{end}}
-    </ul>
-  </div>
+  <header class="panel__head"><h2>Platform manifests</h2><p>{{len .Children}} entries</p></header>
+  <ul class="rows">
+    {{range .Children}}
+    <li class="row childrow{{if .Attestation}} is-muted{{end}}"{{if not .Attestation}} data-href="{{.Href}}"{{end}}>
+      <span class="c c--tagname">
+        {{if .Attestation}}<span class="dim">{{.Platform}}</span> <span class="chip">attestation</span>
+        {{else}}<a class="row__link" href="{{.Href}}">{{.Platform}}</a>{{end}}
+      </span>
+      <span class="c c--size" data-label="Size">{{bytes .Size}}</span>
+      <span class="c c--digest" data-label="Digest">
+        <button class="copy digest" type="button" data-copy="{{.Digest}}" title="Copy {{.Digest}}">{{short .Digest}}</button>
+      </span>
+    </li>
+    {{end}}
+  </ul>
 </section>
 {{end}}
 
 {{if .Layers}}
-<section class="panel panel--layers">
-  <h2 class="panel__title">
-    Layer composition
-    <span class="panel__hint">{{len .Layers}} layers &middot; {{bytes .LayerBytes}} compressed{{if .LayersFrom}} &middot; {{.LayersFrom}}{{end}}</span>
-  </h2>
+<section class="panel panel--layers {{.Tint}}">
+  <header class="panel__head">
+    <h2>Layers</h2>
+    <p>{{len .Layers}} layers · {{bytes .LayerBytes}} compressed{{if .LayersFrom}} · {{.LayersFrom}}{{end}}</p>
+    <span class="panel__aside">hover a band or a row to link them</span>
+  </header>
 
-  {{/* The bar is proportional to layer size: the widest segment is where the
-       image weight actually is, which is the first thing worth knowing. */}}
+  {{/* Widths live in the nonced stylesheet: the CSP forbids style
+       attributes, and a nonce only authorises a <style> element. */}}
   <style nonce="{{.Nonce}}">{{.LayerCSS}}</style>
   <div class="layerbar" role="img" aria-label="Relative size of each layer">
     {{range .Layers}}
-    <button class="layerbar__seg{{if .Hot}} is-hot{{end}}" type="button"
+    <button class="layerbar__seg{{if eq .Index 1}} is-first{{end}}{{if .Top}} is-top{{else if .Hot}} is-hot{{end}}" type="button"
             data-layer="{{.Index}}"
             title="Layer {{.Index}} · {{bytes .Size}}{{if .Command}} · {{.Command}}{{end}}"
-            aria-label="Layer {{.Index}}, {{bytes .Size}}"></button>
+            aria-label="Layer {{.Index}}, {{bytes .Size}}">{{if .Label}}<span>{{.Index}} · {{bytes .Size}}</span>{{end}}</button>
     {{end}}
   </div>
 
-  <ol class="layers">
+  <div class="thead thead--layer" aria-hidden="true"><span>#</span><span>Size</span><span>Share</span><span>Instruction</span><span class="ta-r">Digest</span></div>
+  <ol class="rows layers">
     {{range .Layers}}
-    <li class="layer" id="layer-{{.Index}}" data-layer="{{.Index}}">
-      <span class="layer__idx">{{.Index}}</span>
-      <span class="layer__size{{if .Hot}} is-hot{{end}}">{{bytes .Size}}</span>
-      <code class="layer__cmd">{{if .Command}}{{.Command}}{{else}}<span class="mono-dim">{{.MediaType}}</span>{{end}}</code>
-      <button class="copy layer__digest" type="button" data-copy="{{.Digest}}" title="Copy {{.Digest}}">{{short .Digest}}</button>
+    <li class="row layer{{if .Top}} is-top{{end}}" id="layer-{{.Index}}" data-layer="{{.Index}}">
+      <span class="c layer__idx">{{.Index}}</span>
+      <span class="c layer__size">{{bytes .Size}}</span>
+      <span class="c share" data-layer="{{.Index}}"><span class="share__track"><span class="share__fill"></span></span><span class="share__pct">{{if lt .Share 1}}&lt;1{{else}}{{.Share}}{{end}} %</span></span>
+      <code class="c layer__cmd">{{if .Command}}{{.Command}}{{else}}<span class="dim">{{.MediaType}}</span>{{end}}</code>
+      <span class="c c--digest"><button class="copy digest" type="button" data-copy="{{.Digest}}" title="Copy {{.Digest}}">{{short .Digest}}</button></span>
     </li>
     {{end}}
   </ol>
@@ -88,10 +94,9 @@
 {{if .Cfg}}
 <div class="panels">
   <section class="panel">
-    <h2 class="panel__title">Configuration</h2>
+    <header class="panel__head"><h2>Configuration</h2><p>from the config blob</p></header>
     <dl class="kv">
-      {{if .Cfg.Architecture}}<dt>Architecture</dt><dd>{{.Cfg.Architecture}}{{if .Cfg.Variant}}/{{.Cfg.Variant}}{{end}}</dd>{{end}}
-      {{if .Cfg.OS}}<dt>OS</dt><dd>{{.Cfg.OS}}</dd>{{end}}
+      {{if .Cfg.Architecture}}<dt>Platform</dt><dd>{{if .Cfg.OS}}{{.Cfg.OS}}/{{end}}{{.Cfg.Architecture}}{{if .Cfg.Variant}}/{{.Cfg.Variant}}{{end}}</dd>{{end}}
       {{if .Cfg.User}}<dt>User</dt><dd>{{.Cfg.User}}</dd>{{end}}
       {{if .Cfg.WorkingDir}}<dt>Workdir</dt><dd>{{.Cfg.WorkingDir}}</dd>{{end}}
       {{if .Cfg.Entrypoint}}<dt>Entrypoint</dt><dd><code>{{join .Cfg.Entrypoint " "}}</code></dd>{{end}}
@@ -99,40 +104,49 @@
       {{if .Cfg.ExposedPorts}}<dt>Ports</dt><dd>{{range .Cfg.ExposedPorts}}<span class="chip">{{.}}</span>{{end}}</dd>{{end}}
       {{if .Cfg.Volumes}}<dt>Volumes</dt><dd>{{range .Cfg.Volumes}}<span class="chip">{{.}}</span>{{end}}</dd>{{end}}
       {{if .Cfg.Author}}<dt>Author</dt><dd>{{.Cfg.Author}}</dd>{{end}}
+      {{if .Created}}<dt>Created</dt><dd>{{full .Created}} · {{since .Created}}</dd>{{end}}
     </dl>
   </section>
 
   {{if .Cfg.Env}}
   <section class="panel">
-    <h2 class="panel__title">Environment<span class="panel__hint">{{len .Cfg.Env}}</span></h2>
-    <ul class="envlist">
-      {{range .Env}}<li><span class="envlist__k">{{.Key}}</span><span class="envlist__v">{{.Value}}</span></li>{{end}}
+    <header class="panel__head"><h2>Environment</h2><p>{{len .Cfg.Env}} variables</p></header>
+    <ul class="env">
+      {{range .Env}}<li><span class="env__k">{{.Key}}</span><span class="env__v">{{.Value}}</span></li>{{end}}
     </ul>
   </section>
   {{end}}
 
   {{if .Labels}}
   <section class="panel">
-    <h2 class="panel__title">Labels<span class="panel__hint">{{len .Labels}}</span></h2>
-    <ul class="envlist">
-      {{range .Labels}}<li><span class="envlist__k">{{.Key}}</span><span class="envlist__v">{{.Value}}</span></li>{{end}}
+    <header class="panel__head"><h2>Labels</h2><p>{{len .Labels}}</p></header>
+    <ul class="env">
+      {{range .Labels}}<li><span class="env__k">{{.Key}}</span><span class="env__v">{{.Value}}</span></li>{{end}}
+    </ul>
+  </section>
+  {{end}}
+
+  {{if .Annotations}}
+  <section class="panel">
+    <header class="panel__head"><h2>Annotations</h2><p>{{len .Annotations}} · on the manifest</p></header>
+    <ul class="env">
+      {{range .Annotations}}<li><span class="env__k">{{.Key}}</span><span class="env__v">{{.Value}}</span></li>{{end}}
     </ul>
   </section>
   {{end}}
 </div>
-{{end}}
-
-{{if .Annotations}}
+{{else if .Annotations}}
 <section class="panel">
-  <h2 class="panel__title">Annotations<span class="panel__hint">{{len .Annotations}} &middot; on the manifest</span></h2>
-  <ul class="envlist">
-    {{range .Annotations}}<li><span class="envlist__k">{{.Key}}</span><span class="envlist__v">{{.Value}}</span></li>{{end}}
+  <header class="panel__head"><h2>Annotations</h2><p>{{len .Annotations}} · on the manifest</p></header>
+  <ul class="env">
+    {{range .Annotations}}<li><span class="env__k">{{.Key}}</span><span class="env__v">{{.Value}}</span></li>{{end}}
   </ul>
 </section>
 {{end}}
 
 <details class="raw">
-  <summary class="raw__summary">Raw manifest<span class="panel__hint">{{.Img.MediaType}}</span></summary>
+  <summary class="raw__summary"><span class="caret" aria-hidden="true"></span><b>Raw manifest</b><span class="dim">{{.Img.MediaType}}</span></summary>
+  <div class="raw__tools"><button class="copy chip" type="button" data-copy="{{.RawManifest}}">copy</button></div>
   <pre class="raw__pre"><code>{{.RawManifest}}</code></pre>
 </details>
 

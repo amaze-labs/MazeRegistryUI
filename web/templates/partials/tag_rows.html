@@ -6,13 +6,14 @@
 </li>
 {{- else}}
 {{- range .Tags}}
-<li class="row row--tag" data-filter-key="{{.Tag}}"
+<li class="row tagrow" data-filter-key="{{.Tag}}" data-kind="{{.Kind}}" data-tag="{{.Tag}}" data-href="{{.Href}}"
     hx-get="{{.SummaryURL}}" hx-trigger="revealed once" hx-swap="outerHTML" hx-target="this">
-  <span class="tag"><a class="row__link" href="{{.Href}}">{{.Tag}}</a></span>
-  <span class="cell cell--platforms"><span class="skeleton skeleton--md"></span></span>
-  <span class="cell ta-r"><span class="skeleton skeleton--sm"></span></span>
-  <span class="cell ta-r"><span class="skeleton skeleton--sm"></span></span>
-  <span class="cell ta-r"><span class="skeleton skeleton--sm"></span></span>
+  <span class="c c--tagname"><a class="row__link" href="{{.Href}}">{{.Tag}}</a></span>
+  <span class="c c--plat"><span class="sk sk--plat"></span></span>
+  <span class="c c--strip"><span class="sk sk--strip"></span></span>
+  <span class="c c--size"><span class="sk sk--num"></span></span>
+  <span class="c c--when"><span class="sk sk--when"></span></span>
+  <span class="c c--digest"><span class="sk sk--digest"></span></span>
 </li>
 {{- end}}
 {{- if .HasMore}}
@@ -24,23 +25,25 @@
 {{end}}
 
 {{define "tag_row"}}
-<li class="row row--tag{{if .Sum.Err}} is-degraded{{end}}" data-filter-key="{{.Tag}}">
-  <span class="tag">
+<li class="row tagrow{{if .Sum.Err}} is-degraded{{end}}" data-filter-key="{{.Tag}}" data-kind="{{.Kind}}" data-tag="{{.Tag}}" data-href="{{.Href}}"{{if .Sum.Digest}} data-digest="{{.Sum.Digest}}"{{end}}>
+  <span class="c c--tagname">
     <a class="row__link" href="{{.Href}}">{{.Tag}}</a>
     {{if .Sum.IsIndex}}<span class="chip chip--index" title="Multi-platform image index">index</span>{{end}}
+    <span class="alias" aria-live="off"></span>
   </span>
   {{- if .Sum.Err}}
-  <span class="cell cell--platforms" colspan="4"><span class="chip chip--err" title="{{.Sum.Err}}">unreadable</span></span>
-  <span class="cell ta-r">—</span><span class="cell ta-r">—</span><span class="cell ta-r">—</span>
+  <span class="c c--plat"><span class="chip chip--err" title="{{.Sum.Err}}">unreadable</span></span>
+  <span class="c c--strip"><span class="dash">—</span></span><span class="c c--size dash">—</span><span class="c c--when dash">—</span><span class="c c--digest dash">—</span>
   {{- else}}
-  <span class="cell cell--platforms">
+  <span class="c c--plat">
     {{- range .Sum.Platforms}}<span class="plat">{{.}}</span>{{end -}}
-    {{- if not .Sum.Platforms}}<span class="mono-dim">—</span>{{end -}}
+    {{- if not .Sum.Platforms}}<span class="dash">—</span>{{end -}}
   </span>
-  <span class="cell ta-r" data-label="Size">{{bytes .Sum.Size}}</span>
-  <span class="cell ta-r" data-label="Pushed"><time datetime="{{iso .Sum.Created}}" title="{{full .Sum.Created}}">{{since .Sum.Created}}</time></span>
-  <span class="cell ta-r cell--digest" data-label="Digest">
-    <button class="copy" type="button" data-copy="{{.Sum.Digest}}" title="Copy {{.Sum.Digest}}">{{short .Sum.Digest}}</button>
+  <span class="c c--strip">{{template "strip" .Strip}}</span>
+  <span class="c c--size" data-label="Size">{{bytes .Sum.Size}}</span>
+  <span class="c c--when" data-label="Pushed">{{if .Sum.Created.IsZero}}<span class="dash">—</span>{{else}}<time class="{{if fresh .Sum.Created}}is-fresh{{end}}" datetime="{{iso .Sum.Created}}" title="{{full .Sum.Created}}">{{since .Sum.Created}}</time>{{end}}</span>
+  <span class="c c--digest" data-label="Digest">
+    <button class="copy digest" type="button" data-copy="{{.Sum.Digest}}" title="Copy {{.Sum.Digest}}">{{short .Sum.Digest}}</button>
   </span>
   {{- end}}
 </li>

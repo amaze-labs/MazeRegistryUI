@@ -311,7 +311,7 @@ func TestServerConcurrentRequests(t *testing.T) {
 		"/", "/healthz", "/r/local", "/r/local?q=app",
 		"/r/local/repo/app", "/r/local/image/app?ref=latest",
 		"/x/catalog/local", "/x/tags/local/app", "/x/tag/local/app?t=latest",
-		"/x/repocount/local/app", "/x/health/local",
+		"/x/reporow/local/app", "/x/health/local",
 	}
 
 	var wg sync.WaitGroup

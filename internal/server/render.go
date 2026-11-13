@@ -106,8 +106,11 @@ func templateFuncs() template.FuncMap {
 			}
 			return t.UTC().Format(time.RFC3339)
 		},
-		"join": func(parts []string, sep string) string { return strings.Join(parts, sep) },
-		"sub":  func(a, b int) int { return a - b },
+		// fresh marks a push from the last hour, which the lists highlight.
+		"fresh":     func(t time.Time) bool { return !t.IsZero() && time.Since(t) < time.Hour },
+		"join":      func(parts []string, sep string) string { return strings.Join(parts, sep) },
+		"hasPrefix": strings.HasPrefix,
+		"sub":       func(a, b int) int { return a - b },
 		// dict builds an inline map so a partial can be called with ad-hoc
 		// arguments, e.g. the banner partial.
 		"dict": func(kv ...any) (map[string]any, error) {

@@ -6,3 +6,14 @@
 {{end}}
 
 {{define "health_dot"}}<span class="dot dot--{{.State}}" title="{{.Message}}" aria-hidden="true"></span>{{end}}
+
+{{/* A layer strip: first layer hatched, largest layer in the namespace tint,
+     the rest dark. Geometry in percent of a 100-unit viewBox. */}}
+{{define "strip"}}
+{{- if . -}}
+<svg class="strip" viewBox="0 0 100 10" preserveAspectRatio="none" role="img" aria-label="First layer {{.BasePct}}%, largest layer {{.MainPct}}% of {{.Layers}} layers">
+  <title>first layer {{.BasePct}}% · largest layer {{.MainPct}}% · {{.Layers}} layers</title>
+  {{- range .Segs}}<rect class="strip__{{.Kind}}" x="{{printf "%.3f" .X}}" y="0" width="{{printf "%.3f" .W}}" height="10"/>{{end -}}
+</svg>
+{{- else -}}<span class="dash">—</span>{{- end -}}
+{{end}}

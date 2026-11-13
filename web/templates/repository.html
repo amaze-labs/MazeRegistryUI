@@ -1,42 +1,53 @@
 {{define "content"}}
 <section class="pagehead">
   <div class="pagehead__main">
-    <p class="eyebrow">Repository</p>
-    <h1 class="pagehead__title pagehead__title--repo">
-      {{- if .Namespace}}<span class="repo__ns">{{.Namespace}}/</span>{{end -}}
-      {{.Short}}
-    </h1>
-    <p class="pagehead__sub"><span class="mono-dim">{{.Current.Host}}/{{.Repo}}</span></p>
+    <h1 class="title title--repo">{{if .Namespace}}<span class="title__dim">{{.Namespace}}/</span>{{end}}{{.Short}}</h1>
+    <p class="pagehead__sub"><i class="swatch {{.Tint}}" aria-hidden="true"></i><span>{{.Current.Host}}/{{.Repo}}</span></p>
   </div>
-  <dl class="stats">
-    <div class="stat"><dt>Tags</dt><dd>{{.TagCount}}{{if .HasMore}}+{{end}}</dd></div>
+  <dl class="cart">
+    <div><dt>Tags</dt><dd>{{.TagCount}}{{if .HasMore}}+{{end}}</dd></div>
+    <div><dt>Releases</dt><dd>{{.Releases}}</dd></div>
+    <div><dt>Pre-releases</dt><dd>{{.Pre}}</dd></div>
+    <div><dt>Moving</dt><dd>{{.Moving}}</dd></div>
   </dl>
 </section>
+
+{{if and .ShowPull .FirstTag}}
+<div class="pull" id="pull" data-pull-base="{{.PullBase}}">
+  <span class="pull__label">pull</span>
+  <code class="pull__cmd">docker pull {{.PullBase}}:<em class="pull__ref">{{.FirstTag}}</em></code>
+  <span class="pull__hint">tag of the selected row</span>
+  <button class="pull__copy" type="button" data-copy="docker pull {{.PullBase}}:{{.FirstTag}}">copy</button>
+</div>
+{{end}}
 
 {{if .Err}}
   {{template "banner" dict "Kind" "error" "Title" "Cannot list tags" "Body" .Err}}
 {{end}}
 
 {{if .Tags}}
-<div class="toolbar">
-  <div class="search">
-    <svg class="search__icon" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><circle cx="6" cy="6" r="4.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M9.5 9.5L13 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-    <input class="search__input" type="search" placeholder="Filter tags" aria-label="Filter tags"
-           autocomplete="off" spellcheck="false" data-filter="#tag-list">
+<div class="sheet {{.Tint}}">
+  <div class="toolbar">
+    <div class="search">
+      <svg class="search__icon" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="m20 20-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <input class="search__input" type="search" placeholder="Filter {{.TagCount}} tags" aria-label="Filter tags"
+             autocomplete="off" spellcheck="false" data-filter="#tag-list" data-hotkey="/">
+    </div>
+    <div class="chips" role="group" aria-label="Tag kind">
+      <button class="chip is-on" type="button" data-kind="">all <small>{{.TagCount}}</small></button>
+      {{if .Releases}}<button class="chip" type="button" data-kind="release">releases <small>{{.Releases}}</small></button>{{end}}
+      {{if .Pre}}<button class="chip" type="button" data-kind="pre">pre-releases <small>{{.Pre}}</small></button>{{end}}
+      {{if .Moving}}<button class="chip" type="button" data-kind="moving">moving <small>{{.Moving}}</small></button>{{end}}
+    </div>
   </div>
-</div>
-{{end}}
-
-<div class="listwrap">
-  <div class="list__head list__head--tag" aria-hidden="true">
-    <span>Tag</span>
-    <span>Platforms</span>
-    <span class="ta-r">Size</span>
-    <span class="ta-r">Pushed</span>
-    <span class="ta-r">Digest</span>
+  <div class="thead thead--tag" aria-hidden="true">
+    <span>Tag</span><span>Platforms</span><span>Layers</span><span class="ta-r">Size</span><span>Pushed</span><span>Digest</span>
   </div>
-  <ul class="list" id="tag-list">
+  <ul class="rows" id="tag-list">
     {{template "tag_rows" .}}
   </ul>
 </div>
+{{else if not .Err}}
+<div class="sheet"><ul class="rows">{{template "tag_rows" .}}</ul></div>
+{{end}}
 {{end}}

@@ -116,7 +116,7 @@ func (s *Server) routes() http.Handler {
 
 	// Fragment endpoints consumed by HTMX.
 	mux.HandleFunc("GET /x/catalog/{rid}", s.handleCatalogRows)
-	mux.HandleFunc("GET /x/repocount/{rid}/{repo...}", s.handleRepoCount)
+	mux.HandleFunc("GET /x/reporow/{rid}/{repo...}", s.handleRepoRow)
 	mux.HandleFunc("GET /x/tags/{rid}/{repo...}", s.handleTagRows)
 	mux.HandleFunc("GET /x/tag/{rid}/{repo...}", s.handleTagRow)
 	mux.HandleFunc("GET /x/health/{rid}", s.handleRegistryHealth)

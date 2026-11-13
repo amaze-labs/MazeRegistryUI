@@ -46,18 +46,57 @@ type repoRow struct {
 	Namespace string
 	Short     string
 	Href      string
-	CountURL  string
+	RowURL    string
+	Tint      string
+	// PullBase is "host/repo", completed with ":tag" in the browser once the
+	// row knows which tag it describes.
+	PullBase string
+}
+
+// repoGroup is one namespace section of the grouped catalog. A small registry
+// renders every group open with its rows inline; a large one renders closed
+// groups whose rows load the first time they are opened.
+type repoGroup struct {
+	Name    string
+	Label   string
+	Count   int
+	Tint    string
+	Open    bool
+	Rows    []repoRow
+	RowsURL string
+}
+
+// nsChip is a namespace filter in the catalog toolbar.
+type nsChip struct {
+	Label  string
+	Count  int
+	Tint   string
+	Href   string
+	Active bool
 }
 
 type catalogPage struct {
 	Layout
-	Repos   []repoRow
-	Total   int
-	Shown   int
-	HasMore bool
-	MoreURL string
-	Err     string
+	Repos      []repoRow
+	Groups     []repoGroup
+	Grouped    bool
+	Flat       bool
+	Namespace  string
+	Chips      []nsChip
+	ChipsMore  int
+	AllHref    string
+	ViewHref   string
+	Total      int
+	Registry   int
+	Namespaces int
+	Shown      int
+	HasMore    bool
+	MoreURL    string
+	Err        string
 }
+
+// maxChips caps the namespace chips; the rest are reachable through the filter.
+const maxChips = 6
 
 func (s *Server) handleCatalog(w http.ResponseWriter, r *http.Request) {
 	reg, client, ok := s.lookup(w, r)
@@ -70,7 +109,8 @@ func (s *Server) handleCatalog(w http.ResponseWriter, r *http.Request) {
 	s.render(w, r, "catalog", page)
 }
 
-// handleCatalogRows answers the search box and the "load more" button.
+// handleCatalogRows answers the search box, the "load more" button and the
+// first opening of a collapsed namespace group.
 func (s *Server) handleCatalogRows(w http.ResponseWriter, r *http.Request) {
 	reg, client, ok := s.lookup(w, r)
 	if !ok {
@@ -81,29 +121,113 @@ func (s *Server) handleCatalogRows(w http.ResponseWriter, r *http.Request) {
 	page.Layout.Query = r.URL.Query().Get("q")
 
 	// Keep the address bar in step with the filter so the view is shareable.
-	if q := r.URL.Query().Get("q"); r.Header.Get("HX-Request") != "" {
+	// A group opening or its "load more" carries no q and must not touch it.
+	if q := r.URL.Query(); r.Header.Get("HX-Request") != "" && q.Has("q") {
 		target := joinPath(s.cfg.Server.BasePath, "/r/"+reg.ID)
-		if q != "" {
-			target += "?q=" + urlQueryEscape(q)
+		if v := q.Get("q"); v != "" {
+			target += "?q=" + urlQueryEscape(v)
 		}
 		w.Header().Set("HX-Push-Url", target)
+	}
+	// The search box replaces the whole body (groups or list); "load more"
+	// and a group's first opening only append rows.
+	if r.URL.Query().Get("part") == "body" || page.Grouped {
+		s.renderPartial(w, r, "catalog_body", page)
+		return
 	}
 	s.renderPartial(w, r, "catalog_rows", page)
 }
 
 func (s *Server) buildCatalog(r *http.Request, reg config.Registry, client registry.Client) *catalogPage {
-	q := r.URL.Query().Get("q")
+	qv := r.URL.Query()
+	q := qv.Get("q")
+	ns := qv.Get("ns")
 	offset := intParam(r, "o", 0)
 	limit := s.cfg.UI.CatalogPageSize
+	bp := s.cfg.Server.BasePath
+	base := joinPath(bp, "/r/"+reg.ID)
 
-	page := &catalogPage{}
+	page := &catalogPage{Namespace: ns, Flat: qv.Get("view") == "flat", AllHref: base}
 	all, err := s.catalog.List(r.Context(), reg.ID, client, limit, reg.CacheTTL)
 	if err != nil {
 		page.Err = friendlyError(err)
 		return page
 	}
+	page.Registry = len(all)
+
+	counts := namespaceCounts(all)
+	page.Namespaces = len(counts)
+	for i, c := range counts {
+		if i >= maxChips {
+			page.ChipsMore = len(counts) - maxChips
+			break
+		}
+		label := c.Name
+		if label == "" {
+			label = "(root)"
+		}
+		page.Chips = append(page.Chips, nsChip{
+			Label:  label,
+			Count:  c.Count,
+			Tint:   s.catalog.Tint(reg.ID, c.Name),
+			Href:   base + "?ns=" + urlQueryEscape(c.Name),
+			Active: qv.Has("ns") && ns == c.Name,
+		})
+	}
+	if page.Flat {
+		page.ViewHref = base
+	} else {
+		page.ViewHref = base + "?view=flat"
+	}
+
+	// Grouped is the default overview. A filter, a namespace or the flat
+	// toggle all turn it into a plain, paginated list.
+	// A registry with a single namespace has nothing to group, so it gets the
+	// plain list straight away.
+	if q == "" && !qv.Has("ns") && !page.Flat && len(counts) > 1 {
+		page.Grouped = true
+		page.Total = len(all)
+		open := len(all) <= limit
+		byNS := map[string][]string{}
+		for _, name := range all {
+			n, _ := splitRepo(name)
+			byNS[n] = append(byNS[n], name)
+		}
+		// Groups follow the namespace order of the index (alphabetical), not
+		// the chip order (by size): an overview is scanned, not ranked.
+		names := make([]string, 0, len(byNS))
+		for n := range byNS {
+			names = append(names, n)
+		}
+		sort.Strings(names)
+		for _, n := range names {
+			g := repoGroup{Name: n, Label: n, Count: len(byNS[n]), Tint: s.catalog.Tint(reg.ID, n), Open: open}
+			if n == "" {
+				g.Label = "(root)"
+			}
+			if open {
+				for _, name := range byNS[n] {
+					g.Rows = append(g.Rows, s.repoRowFor(reg, name))
+				}
+			} else {
+				g.RowsURL = fmt.Sprintf("%s/x/catalog/%s?ns=%s", bp, reg.ID, urlQueryEscape(n))
+			}
+			page.Groups = append(page.Groups, g)
+		}
+		page.Shown = len(all)
+		return page
+	}
 
 	matched := filterRepos(all, q)
+	if qv.Has("ns") {
+		inNS := matched[:0:0]
+		for _, name := range matched {
+			if n, _ := splitRepo(name); n == ns {
+				inNS = append(inNS, name)
+			}
+		}
+		matched = inNS
+	}
 	page.Total = len(matched)
 
 	if offset > len(matched) {
@@ -113,37 +237,60 @@ func (s *Server) buildCatalog(r *http.Request, reg config.Registry, client regis
 	page.Shown = end
 	page.HasMore = end < len(matched)
 
-	base := joinPath(s.cfg.Server.BasePath, "/r/"+reg.ID)
 	page.Repos = make([]repoRow, 0, end-offset)
 	for _, name := range matched[offset:end] {
-		ns, short := splitRepo(name)
-		page.Repos = append(page.Repos, repoRow{
-			Name:      name,
-			Namespace: ns,
-			Short:     short,
-			Href:      base + "/repo/" + name,
-			CountURL:  joinPath(s.cfg.Server.BasePath, "/x/repocount/"+reg.ID+"/"+name),
-		})
+		page.Repos = append(page.Repos, s.repoRowFor(reg, name))
 	}
 
 	if page.HasMore {
-		page.MoreURL = fmt.Sprintf("%s/x/catalog/%s?o=%d&q=%s",
-			s.cfg.Server.BasePath, reg.ID, end, urlQueryEscape(q))
+		page.MoreURL = fmt.Sprintf("%s/x/catalog/%s?o=%d&q=%s", bp, reg.ID, end, urlQueryEscape(q))
+		if qv.Has("ns") {
+			page.MoreURL += "&ns=" + urlQueryEscape(ns)
+		}
+		if page.Flat {
+			page.MoreURL += "&view=flat"
+		}
 	}
 	return page
 }
 
-type repoCount struct {
-	Count string
-	Err   string
+func (s *Server) repoRowFor(reg config.Registry, name string) repoRow {
+	ns, short := splitRepo(name)
+	bp := s.cfg.Server.BasePath
+	return repoRow{
+		Name:      name,
+		Namespace: ns,
+		Short:     short,
+		Href:      joinPath(bp, "/r/"+reg.ID+"/repo/"+name),
+		RowURL:    joinPath(bp, "/x/reporow/"+reg.ID+"/"+name),
+		Tint:      s.catalog.Tint(reg.ID, ns),
+		PullBase:  reg.PullTarget() + "/" + name,
+	}
 }
 
-func (s *Server) handleRepoCount(w http.ResponseWriter, r *http.Request) {
+// repoRowFull is a catalog row once its details have been looked up.
+type repoRowFull struct {
+	repoRow
+	Count  string
+	Extra  int
+	Latest string
+	Sum    *registry.TagSummary
+	Strip  *stripView
+	Err    string
+}
+
+// handleRepoRow resolves the details of one catalog row: the tag count, the
+// newest tag and its size, platforms, age and layer composition. Rows load as
+// they scroll into view, through the same per-registry semaphore as tag rows,
+// and every lookup after the first is answered by the client cache (the tag's
+// manifest is stored under its digest, so the Image call below is a hit).
+func (s *Server) handleRepoRow(w http.ResponseWriter, r *http.Request) {
 	reg, client, ok := s.lookup(w, r)
 	if !ok {
 		return
 	}
 	repo := r.PathValue("repo")
+	row := repoRowFull{repoRow: s.repoRowFor(reg, repo)}
 
 	release, acquired := s.acquire(r.Context(), reg.ID)
 	if !acquired {
@@ -153,14 +300,27 @@ func (s *Server) handleRepoCount(w http.ResponseWriter, r *http.Request) {
 
 	tags, err := client.Tags(r.Context(), repo, tagCountLimit, "")
 	if err != nil {
-		s.renderPartial(w, r, "repo_count", repoCount{Err: friendlyError(err)})
+		row.Err = friendlyError(err)
+		s.renderPartial(w, r, "repo_row", row)
 		return
 	}
-	count := strconv.Itoa(len(tags.Tags))
+	row.Count = strconv.Itoa(len(tags.Tags))
 	if tags.NextLast != "" {
-		count += "+"
+		row.Count += "+"
 	}
-	s.renderPartial(w, r, "repo_count", repoCount{Count: count})
+	row.Latest = pickLatest(tags.Tags)
+	if row.Latest == "" {
+		s.renderPartial(w, r, "repo_row", row)
+		return
+	}
+	row.Extra = len(tags.Tags) - 1
+	row.Sum = client.TagSummary(r.Context(), repo, row.Latest)
+	if row.Sum.Err == "" && row.Sum.Digest != "" {
+		if img, err := client.Image(r.Context(), repo, row.Sum.Digest, true); err == nil {
+			row.Strip = stripFromLayers(imageLayers(img))
+		}
+	}
+	s.renderPartial(w, r, "repo_row", row)
 }
 
 // --- repository --------------------------------------------------------
@@ -169,7 +329,10 @@ type tagRowView struct {
 	Tag        string
 	Href       string
 	SummaryURL string
-	Sum        *registry.TagSummary
+	// Kind is release, pre or moving; it drives the filter chips.
+	Kind  string
+	Sum   *registry.TagSummary
+	Strip *stripView
 }
 
 type repoPage struct {
@@ -177,10 +340,17 @@ type repoPage struct {
 	Repo      string
 	Namespace string
 	Short     string
+	Tint      string
 	Tags      []tagRowView
 	TagCount  int
+	Releases  int
+	Pre       int
+	Moving    int
 	HasMore   bool
 	MoreURL   string
+	PullBase  string
+	FirstTag  string
+	ShowPull  bool
 	Err       string
 }
 
@@ -192,7 +362,8 @@ func (s *Server) handleRepository(w http.ResponseWriter, r *http.Request) {
 	repo := r.PathValue("repo")
 	ns, short := splitRepo(repo)
 
-	page := &repoPage{Repo: repo, Namespace: ns, Short: short}
+	page := &repoPage{Repo: repo, Namespace: ns, Short: short, Tint: s.catalog.Tint(reg.ID, ns),
+		PullBase: reg.PullTarget() + "/" + repo, ShowPull: s.cfg.UI.ShowPullCommand}
 	page.Layout = s.layout(r, reg, repo)
 	page.Crumbs = []Crumb{
 		{Label: reg.Name, Href: joinPath(s.cfg.Server.BasePath, "/r/"+reg.ID)},
@@ -238,11 +409,24 @@ func (s *Server) fillTagRows(page *repoPage, reg config.Registry, repo string, t
 	page.TagCount = len(tags.Tags)
 	page.Tags = make([]tagRowView, 0, len(tags.Tags))
 	for _, tag := range tags.Tags {
+		kind := tagKind(tag)
+		switch kind {
+		case "release":
+			page.Releases++
+		case "pre":
+			page.Pre++
+		default:
+			page.Moving++
+		}
 		page.Tags = append(page.Tags, tagRowView{
 			Tag:        tag,
+			Kind:       kind,
 			Href:       fmt.Sprintf("%s/r/%s/image/%s?ref=%s", bp, reg.ID, repo, urlQueryEscape(tag)),
 			SummaryURL: fmt.Sprintf("%s/x/tag/%s/%s?t=%s", bp, reg.ID, repo, urlQueryEscape(tag)),
 		})
+	}
+	if len(tags.Tags) > 0 {
+		page.FirstTag = pickLatest(tags.Tags)
 	}
 	if tags.NextLast != "" {
 		page.HasMore = true
@@ -268,12 +452,20 @@ func (s *Server) handleTagRow(w http.ResponseWriter, r *http.Request) {
 	defer release()
 
 	sum := client.TagSummary(r.Context(), repo, tag)
-	bp := s.cfg.Server.BasePath
-	s.renderPartial(w, r, "tag_row", tagRowView{
+	view := tagRowView{
 		Tag:  tag,
-		Href: fmt.Sprintf("%s/r/%s/image/%s?ref=%s", bp, reg.ID, repo, urlQueryEscape(tag)),
+		Kind: tagKind(tag),
+		Href: fmt.Sprintf("%s/r/%s/image/%s?ref=%s", s.cfg.Server.BasePath, reg.ID, repo, urlQueryEscape(tag)),
 		Sum:  sum,
-	})
+	}
+	// The summary already pulled this manifest into the cache under its
+	// digest, so resolving the layers here costs no extra round trip.
+	if sum.Err == "" && sum.Digest != "" {
+		if img, err := client.Image(r.Context(), repo, sum.Digest, true); err == nil {
+			view.Strip = stripFromLayers(imageLayers(img))
+		}
+	}
+	s.renderPartial(w, r, "tag_row", view)
 }
 
 // --- image -------------------------------------------------------------
@@ -285,7 +477,13 @@ type layerView struct {
 	Command   string
 	Size      int64
 	Hot       bool
-	Grow      float64
+	// Top marks the single largest layer, drawn in the accent colour.
+	Top  bool
+	Grow float64
+	// Share is the layer's percentage of the image, rounded for display.
+	Share int
+	// Label is set on segments wide enough to carry their own caption.
+	Label bool
 }
 
 type childView struct {
@@ -311,16 +509,18 @@ type imagePage struct {
 	LayerBytes int64
 	// LayersFrom names the platform the layer breakdown belongs to. An index
 	// has no layers of its own, so a representative child stands in for it.
-	LayersFrom  string
-	Children    []childView
-	Env         []KV
-	Labels      []KV
-	Annotations []KV
-	RawManifest string
-	PullCommand string
-	ShowPull    bool
-	CanDelete   bool
-	CSRF        string
+	LayersFrom   string
+	Children     []childView
+	Env          []KV
+	Labels       []KV
+	Annotations  []KV
+	RawManifest  string
+	PullCommand  string
+	PullByDigest string
+	Tint         string
+	ShowPull     bool
+	CanDelete    bool
+	CSRF         string
 }
 
 func (s *Server) handleImage(w http.ResponseWriter, r *http.Request) {
@@ -366,6 +566,7 @@ func (s *Server) buildImagePage(reg config.Registry, repo, ref string, img *regi
 		Namespace: ns,
 		Short:     short,
 		Ref:       ref,
+		Tint:      s.catalog.Tint(reg.ID, ns),
 		Img:       img,
 		Cfg:       img.Config,
 		ShowPull:  s.cfg.UI.ShowPullCommand,
@@ -442,6 +643,7 @@ func (s *Server) buildImagePage(reg config.Registry, repo, ref string, img *regi
 	page.Annotations = sortedKV(img.Annotations)
 	page.RawManifest = prettyJSON(img.RawManifest)
 	page.PullCommand = pullCommand(reg.PullTarget(), repo, ref)
+	page.PullByDigest = pullCommand(reg.PullTarget(), repo, img.Digest)
 	return page
 }
 
@@ -485,7 +687,10 @@ func layerViews(layers []registry.Layer) []layerView {
 			Command:   l.Command,
 			Size:      l.Size,
 			Hot:       hot[i],
+			Top:       i == ranked[0] && hot[i],
 			Grow:      grow,
+			Share:     int(grow/10 + 0.5),
+			Label:     grow >= 120,
 		})
 	}
 	return out
@@ -502,6 +707,9 @@ func layerCSS(layers []layerView) template.CSS {
 	var b strings.Builder
 	for _, l := range layers {
 		fmt.Fprintf(&b, ".layerbar__seg[data-layer=\"%d\"]{flex-grow:%.4f}", l.Index, l.Grow)
+		// The share bar in the layer table: a width, floored so a 0.1 %
+		// layer still shows a sliver rather than nothing.
+		fmt.Fprintf(&b, ".share[data-layer=\"%d\"] .share__fill{width:%.2f%%}", l.Index, max(l.Grow/10, 0.8))
 	}
 	return template.CSS(b.String())
 }

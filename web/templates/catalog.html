@@ -1,44 +1,55 @@
 {{define "content"}}
 <section class="pagehead">
   <div class="pagehead__main">
-    <p class="eyebrow">Registry</p>
-    <h1 class="pagehead__title">{{.Current.Name}}</h1>
-    <p class="pagehead__sub"><span class="mono-dim">{{.Current.Host}}</span></p>
+    <h1 class="title">{{.Current.Name}} <span class="title__dim">/ {{.Registry}} {{if eq .Registry 1}}repository{{else}}repositories{{end}}</span></h1>
+    <p class="pagehead__sub">
+      <span class="host"><span class="dot dot--{{.Current.State}}" hx-get="{{url .BasePath (printf "/x/health/%s" .Current.ID)}}" hx-trigger="load" hx-swap="outerHTML" aria-hidden="true"></span>{{.Current.Host}}</span>
+      <span>{{if .Current.Delete}}read / write{{else}}read only{{end}}</span>
+    </p>
   </div>
-  <dl class="stats">
-    <div class="stat"><dt>Repositories</dt><dd id="repo-total">{{.Total}}</dd></div>
-    <div class="stat"><dt>Access</dt><dd>{{if .Current.Delete}}read / write{{else}}read only{{end}}</dd></div>
+  <dl class="cart">
+    <div><dt>Repositories</dt><dd id="repo-total">{{.Registry}}</dd></div>
+    <div><dt>Namespaces</dt><dd>{{.Namespaces}}</dd></div>
+    <div><dt>Access</dt><dd>{{if .Current.Delete}}rw{{else}}ro{{end}}</dd></div>
   </dl>
 </section>
-
-<div class="toolbar">
-  <div class="search">
-    <svg class="search__icon" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><circle cx="6" cy="6" r="4.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M9.5 9.5L13 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-    <input class="search__input" type="search" name="q" value="{{.Query}}"
-           placeholder="Filter repositories"
-           aria-label="Filter repositories"
-           autocomplete="off" autocapitalize="off" spellcheck="false"
-           hx-get="{{url .BasePath (printf "/x/catalog/%s" .Current.ID)}}"
-           hx-trigger="input changed delay:200ms, search"
-           hx-target="#repo-list"
-           hx-swap="innerHTML"
-           hx-indicator="#search-busy"
-           hx-push-url="true">
-    <span class="spinner" id="search-busy" aria-hidden="true"></span>
-  </div>
-</div>
 
 {{if .Err}}
   {{template "banner" dict "Kind" "error" "Title" "Cannot reach this registry" "Body" .Err}}
 {{end}}
 
-<div class="listwrap">
-  <div class="list__head list__head--repo" aria-hidden="true">
-    <span>Repository</span>
-    <span class="ta-r">Tags</span>
+<div class="sheet">
+  <div class="toolbar">
+    <div class="search">
+      <svg class="search__icon" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="m20 20-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <input class="search__input" type="search" name="q" value="{{.Query}}"
+             placeholder="Filter repositories"
+             aria-label="Filter repositories"
+             autocomplete="off" autocapitalize="off" spellcheck="false"
+             data-hotkey="/"
+             hx-get="{{url .BasePath (printf "/x/catalog/%s" .Current.ID)}}?part=body"
+             hx-trigger="input changed delay:200ms, search"
+             hx-target="#catalog-body"
+             hx-swap="innerHTML"
+             hx-indicator="#search-busy">
+      <span class="spinner" id="search-busy" aria-hidden="true"></span>
+    </div>
+    <nav class="chips" aria-label="Namespaces">
+      <a class="chip{{if .Grouped}} is-on{{end}}" href="{{.AllHref}}">all <small>{{.Registry}}</small></a>
+      {{range .Chips}}<a class="chip {{.Tint}}{{if .Active}} is-on{{end}}" href="{{.Href}}"><i class="swatch" aria-hidden="true"></i>{{.Label}} <small>{{.Count}}</small></a>{{end}}
+      {{if .ChipsMore}}<span class="chip chip--more" title="Use the filter to reach the other namespaces">+{{.ChipsMore}}</span>{{end}}
+    </nav>
+    <div class="seg" role="group" aria-label="View">
+      <a class="seg__opt{{if not .Flat}} is-on{{end}}" href="{{.AllHref}}"{{if not .Flat}} aria-current="true"{{end}}>grouped</a>
+      <a class="seg__opt{{if .Flat}} is-on{{end}}" href="{{.AllHref}}?view=flat"{{if .Flat}} aria-current="true"{{end}}>flat</a>
+    </div>
   </div>
-  <ul class="list" id="repo-list">
-    {{template "catalog_rows" .}}
-  </ul>
+
+  <div class="thead thead--repo" aria-hidden="true">
+    <span>Repository</span><span>Latest tag</span><span>Layers</span><span class="ta-r">Size</span><span class="ta-r">Tags</span><span>Platforms</span><span>Last push</span>
+  </div>
+  <div id="catalog-body" class="catalog-body">
+    {{template "catalog_body" .}}
+  </div>
 </div>
 {{end}}

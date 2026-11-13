@@ -107,7 +107,7 @@ func TestRoutes(t *testing.T) {
 		{name: "repository", method: "GET", path: "/r/local/repo/team/api", wantStatus: 200, wantType: "text/html"},
 		{name: "image", method: "GET", path: "/r/local/image/team/api?ref=latest", wantStatus: 200, wantType: "text/html"},
 		{name: "catalog rows fragment", method: "GET", path: "/x/catalog/local", wantStatus: 200, wantType: "text/html"},
-		{name: "repo count fragment", method: "GET", path: "/x/repocount/local/team/api", wantStatus: 200, wantType: "text/html"},
+		{name: "repo row fragment", method: "GET", path: "/x/reporow/local/team/api", wantStatus: 200, wantType: "text/html"},
 		{name: "tag rows fragment", method: "GET", path: "/x/tags/local/team/api", wantStatus: 200, wantType: "text/html"},
 		{name: "tag row fragment", method: "GET", path: "/x/tag/local/team/api?t=latest", wantStatus: 200, wantType: "text/html"},
 		{name: "health fragment", method: "GET", path: "/x/health/local", wantStatus: 200, wantType: "text/html"},
@@ -154,7 +154,7 @@ func TestUnknownRegistryIs404(t *testing.T) {
 		"/x/catalog/ghost",
 		"/x/tags/ghost/app",
 		"/x/tag/ghost/app?t=latest",
-		"/x/repocount/ghost/app",
+		"/x/reporow/ghost/app",
 		"/x/health/ghost",
 	}
 	for _, p := range paths {
@@ -462,7 +462,7 @@ func TestFragmentsAreNotFullPages(t *testing.T) {
 
 	fragments := []string{
 		"/x/catalog/local",
-		"/x/repocount/local/app",
+		"/x/reporow/local/app",
 		"/x/tags/local/app",
 		"/x/tag/local/app?t=latest",
 		"/x/health/local",
@@ -482,15 +482,15 @@ func TestFragmentsAreNotFullPages(t *testing.T) {
 	}
 }
 
-func TestRepoCountFragment(t *testing.T) {
+func TestRepoRowFragment(t *testing.T) {
 	t.Parallel()
 
 	t.Run("plain count", func(t *testing.T) {
 		s, fakes := newTestServer(t, testConfigYAML)
 		fakes["local"].TagList["app"] = []string{"a", "b", "c"}
-		rec := get(t, s, "/x/repocount/local/app")
+		rec := get(t, s, "/x/reporow/local/app")
 		assertStatus(t, rec, http.StatusOK)
-		assertContains(t, body(t, rec), ">3<", "the repo count fragment")
+		assertContains(t, body(t, rec), ">3<", "the repo row fragment")
 	})
 
 	t.Run("more pages get a plus", func(t *testing.T) {
@@ -498,9 +498,9 @@ func TestRepoCountFragment(t *testing.T) {
 		fakes["local"].TagsFn = func(_ context.Context, repo string, _ int, _ string) (*registry.TagPage, error) {
 			return &registry.TagPage{Repository: repo, Tags: []string{"a"}, NextLast: "a"}, nil
 		}
-		rec := get(t, s, "/x/repocount/local/app")
+		rec := get(t, s, "/x/reporow/local/app")
 		// html/template escapes the plus as a numeric entity.
-		assertContains(t, body(t, rec), "1&#43;", "the repo count fragment")
+		assertContains(t, body(t, rec), "1&#43;", "the repo row fragment")
 	})
 
 	t.Run("failure shows an error chip", func(t *testing.T) {
@@ -508,9 +508,9 @@ func TestRepoCountFragment(t *testing.T) {
 		fakes["local"].TagsFn = func(context.Context, string, int, string) (*registry.TagPage, error) {
 			return nil, registry.ErrNotFound
 		}
-		rec := get(t, s, "/x/repocount/local/app")
+		rec := get(t, s, "/x/reporow/local/app")
 		assertStatus(t, rec, http.StatusOK)
-		assertContains(t, body(t, rec), "error", "the repo count fragment")
+		assertContains(t, body(t, rec), "unreadable", "the repo row fragment")
 	})
 }
 

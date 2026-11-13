@@ -180,7 +180,7 @@ func TestAllTemplatesParse(t *testing.T) {
 	if _, ok := tmpl["base"]; ok {
 		t.Error("base is registered as a page; it is only a layout")
 	}
-	for _, partial := range []string{"catalog_rows", "repo_count", "tag_rows", "tag_row", "banner", "health_dot"} {
+	for _, partial := range []string{"catalog_body", "catalog_rows", "repo_rows", "repo_row", "strip", "tag_rows", "tag_row", "banner", "health_dot"} {
 		if tmpl["_partials"].Lookup(partial) == nil {
 			t.Errorf("partial %q is not defined in the fragment set", partial)
 		}

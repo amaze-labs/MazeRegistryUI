@@ -31,6 +31,10 @@ type catalogEntry struct {
 	repos []string
 	at    time.Time
 	err   error
+	// tints maps each namespace to its palette slot. Guarded by
+	// catalogCache.mu rather than load, so a page can read a colour while a
+	// refresh is walking the catalog.
+	tints map[string]string
 }
 
 func newCatalogCache() *catalogCache {
@@ -71,7 +75,48 @@ func (c *catalogCache) List(ctx context.Context, id string, client registry.Clie
 
 	sort.Strings(repos)
 	e.repos, e.err, e.at = repos, nil, time.Now()
+	tints := assignTints(repos)
+	c.mu.Lock()
+	e.tints = tints
+	c.mu.Unlock()
 	return repos, nil
+}
+
+// Tint is the palette slot of a namespace on a registry. Slots are handed out
+// in alphabetical namespace order, so up to eight namespaces never share a
+// colour — hashing alone collides far too early (five namespaces in eight
+// slots already give even odds of a clash). The price is that a new
+// namespace can shift the colours after it, which is the lesser evil. Before
+// the catalog has been listed once, the hash stands in.
+func (c *catalogCache) Tint(id, ns string) string {
+	c.mu.Lock()
+	var t string
+	if e := c.entries[id]; e != nil && e.tints != nil {
+		t = e.tints[ns]
+	}
+	c.mu.Unlock()
+	if t == "" {
+		t = nsTint(ns)
+	}
+	return t
+}
+
+func assignTints(repos []string) map[string]string {
+	out := map[string]string{}
+	i := 0
+	for _, r := range repos { // already sorted, so namespaces arrive in order
+		ns, _ := splitRepo(r)
+		if _, ok := out[ns]; ok {
+			continue
+		}
+		if ns == "" {
+			out[ns] = "tn"
+			continue
+		}
+		out[ns] = "t" + string(rune('0'+i%tintCount))
+		i++
+	}
+	return out
 }
 
 // Invalidate drops the cached list, used after a deletion.

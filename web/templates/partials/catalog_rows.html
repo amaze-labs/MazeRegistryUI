@@ -1,24 +1,33 @@
-{{define "catalog_rows"}}
-{{- if not .Repos}}
-<li class="empty">
-  <p class="empty__title">{{if .Query}}No repository matches “{{.Query}}”{{else}}This registry has no repositories yet{{end}}</p>
-  <p class="empty__body">{{if .Query}}Clear the filter to see all {{.Total}} repositories.{{else}}Push an image to see it listed here.{{end}}</p>
-</li>
+{{/* The catalog body: namespace groups for the overview, a flat list for a
+     filter, a namespace or the flat view. The search box swaps this whole
+     block; "load more" and a group's first opening append catalog_rows. */}}
+{{define "catalog_body"}}
+{{- if .Grouped}}
+  {{- if not .Groups}}
+  <ul class="rows">{{template "catalog_empty" .}}</ul>
+  {{- end}}
+  {{- range .Groups}}
+  <details class="group {{.Tint}}"{{if .Open}} open{{end}}
+    {{- if .RowsURL}} hx-get="{{.RowsURL}}" hx-trigger="toggle once" hx-target="find .rows" hx-swap="innerHTML"{{end}}>
+    <summary class="group__head">
+      <span class="caret" aria-hidden="true"></span><i class="swatch" aria-hidden="true"></i>
+      <b class="group__name">{{.Label}}</b>
+      <span class="group__meta">{{.Count}} {{if eq .Count 1}}repository{{else}}repositories{{end}}</span>
+    </summary>
+    <ul class="rows">
+      {{- if .Open}}{{template "repo_rows" .Rows}}{{else}}<li class="group__wait">Loading {{.Count}} repositories…</li>{{end}}
+    </ul>
+  </details>
+  {{- end}}
 {{- else}}
-{{- range .Repos}}
-<li class="row row--repo">
-  <a class="row__link" href="{{.Href}}">
-    <span class="repo">
-      {{- if .Namespace}}<span class="repo__ns">{{.Namespace}}/</span>{{end -}}
-      <span class="repo__name">{{.Short}}</span>
-    </span>
-  </a>
-  <span class="row__tags"
-        hx-get="{{.CountURL}}"
-        hx-trigger="revealed"
-        hx-swap="outerHTML"><span class="skeleton skeleton--sm"></span></span>
-</li>
+  <ul class="rows" id="repo-list">{{template "catalog_rows" .}}</ul>
 {{- end}}
+{{end}}
+
+{{define "catalog_rows"}}
+{{- if not .Repos}}{{template "catalog_empty" .}}
+{{- else}}
+{{- template "repo_rows" .Repos}}
 {{- if .HasMore}}
 <li class="row row--more">
   <button class="loadmore" type="button"
@@ -26,11 +35,57 @@
           hx-trigger="click"
           hx-target="closest li"
           hx-swap="outerHTML">
-    Load more <span class="mono-dim">({{sub .Total .Shown}} remaining)</span>
+    Load more <span class="dim">({{sub .Total .Shown}} remaining)</span>
   </button>
 </li>
 {{- end}}
 {{- end}}
 {{end}}
 
-{{define "repo_count"}}<span class="row__tags">{{if .Err}}<span class="chip chip--err" title="{{.Err}}">error</span>{{else}}<span class="count">{{.Count}}</span>{{end}}</span>{{end}}
+{{define "catalog_empty"}}
+<li class="empty">
+  <p class="empty__title">{{if .Query}}No repository matches “{{.Query}}”{{else if .Namespace}}No repository in {{.Namespace}}{{else}}This registry has no repositories yet{{end}}</p>
+  <p class="empty__body">{{if or .Query .Namespace}}Clear the filter to see all {{.Registry}} repositories.{{else}}Push an image to see it listed here.{{end}}</p>
+</li>
+{{end}}
+
+{{/* A pending catalog row. Its details arrive when it scrolls into view. */}}
+{{define "repo_rows"}}
+{{- range .}}
+<li class="row repo {{.Tint}}" data-filter-key="{{.Name}}" data-href="{{.Href}}"
+    hx-get="{{.RowURL}}" hx-trigger="revealed once" hx-swap="outerHTML" hx-target="this">
+  <a class="row__link repo__name" href="{{.Href}}">{{if .Namespace}}<span class="ns">{{.Namespace}}/</span>{{end}}{{.Short}}</a>
+  <span class="c c--tag"><span class="sk sk--tag"></span></span>
+  <span class="c c--strip"><span class="sk sk--strip"></span></span>
+  <span class="c c--size"><span class="sk sk--num"></span></span>
+  <span class="c c--count"><span class="sk sk--n"></span></span>
+  <span class="c c--plat"><span class="sk sk--plat"></span></span>
+  <span class="c c--when"><span class="sk sk--when"></span></span>
+</li>
+{{- end}}
+{{end}}
+
+{{/* A resolved catalog row. */}}
+{{define "repo_row"}}
+<li class="row repo {{.Tint}}{{if .Err}} is-degraded{{end}}" data-filter-key="{{.Name}}" data-href="{{.Href}}"{{if .Latest}} data-pull="{{.PullBase}}:{{.Latest}}"{{end}}>
+  <a class="row__link repo__name" href="{{.Href}}">{{if .Namespace}}<span class="ns">{{.Namespace}}/</span>{{end}}{{.Short}}</a>
+  {{- if .Err}}
+  <span class="c c--tag"><span class="chip chip--err" title="{{.Err}}">unreadable</span></span>
+  <span class="c c--strip"><span class="dash">—</span></span><span class="c c--size dash">—</span><span class="c c--count dash">—</span><span class="c c--plat dash">—</span><span class="c c--when dash">—</span>
+  {{- else if not .Latest}}
+  <span class="c c--tag dim">no tags</span>
+  <span class="c c--strip"><span class="dash">—</span></span><span class="c c--size dash">—</span><span class="c c--count">0</span><span class="c c--plat dash">—</span><span class="c c--when dash">—</span>
+  {{- else}}
+  <span class="c c--tag"><span class="tagchip">{{.Latest}}</span>{{if gt .Extra 0}}<span class="plus">+{{.Extra}}</span>{{end}}</span>
+  {{- if .Sum.Err}}
+  <span class="c c--strip"><span class="chip chip--err" title="{{.Sum.Err}}">unreadable</span></span><span class="c c--size dash">—</span>
+  {{- else}}
+  <span class="c c--strip">{{template "strip" .Strip}}</span>
+  <span class="c c--size" data-label="Size">{{bytes .Sum.Size}}</span>
+  {{- end}}
+  <span class="c c--count" data-label="Tags">{{.Count}}</span>
+  <span class="c c--plat">{{range .Sum.Platforms}}<span class="plat">{{.Architecture}}{{if .Variant}}/{{.Variant}}{{end}}</span>{{end}}{{if not .Sum.Platforms}}<span class="dash">—</span>{{end}}</span>
+  <span class="c c--when">{{if .Sum.Created.IsZero}}<span class="dash">—</span>{{else}}<time class="{{if fresh .Sum.Created}}is-fresh{{end}}" datetime="{{iso .Sum.Created}}" title="{{full .Sum.Created}}">{{since .Sum.Created}}</time>{{end}}</span>
+  {{- end}}
+</li>
+{{end}}
