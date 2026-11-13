@@ -205,7 +205,10 @@ should not hide the other five.
 
 ### The catalog: groups, rows and strips
 
-The catalog is grouped by namespace (`buildCatalog`). The grouping costs
+The catalog page is a side rail — the registry, every namespace with its
+count, the keyboard shortcuts — next to one card holding the rows; on a
+phone the rail folds into a heading and the first namespaces become chips.
+The rows are grouped by namespace (`buildCatalog`). The grouping costs
 nothing — it is computed from the in-memory index — and it decides how much
 of a large registry is drawn at all:
 
