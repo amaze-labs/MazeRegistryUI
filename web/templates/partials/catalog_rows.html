@@ -10,7 +10,7 @@
   <details class="group {{.Tint}}"{{if .Open}} open{{end}}
     {{- if .RowsURL}} hx-get="{{.RowsURL}}" hx-trigger="toggle once" hx-target="find .rows" hx-swap="innerHTML"{{end}}>
     <summary class="group__head">
-      <span class="caret" aria-hidden="true"></span><i class="swatch" aria-hidden="true"></i>
+      <span class="caret" aria-hidden="true"></span><i class="nsdot" aria-hidden="true"></i>
       <b class="group__name">{{.Label}}</b>
       <span class="group__meta">{{.Count}} {{if eq .Count 1}}repository{{else}}repositories{{end}}</span>
     </summary>
@@ -54,7 +54,7 @@
 {{- range .}}
 <li class="row repo {{.Tint}}" data-filter-key="{{.Name}}" data-href="{{.Href}}"
     hx-get="{{.RowURL}}" hx-trigger="revealed once" hx-swap="outerHTML" hx-target="this">
-  <a class="row__link repo__name" href="{{.Href}}">{{if .Namespace}}<span class="ns">{{.Namespace}}/</span>{{end}}{{.Short}}</a>
+  <a class="row__link repo__name" href="{{.Href}}"><i class="nsdot" aria-hidden="true"></i>{{if .Namespace}}<span class="ns">{{.Namespace}}/</span>{{end}}{{.Short}}</a>
   <span class="c c--tag"><span class="sk sk--tag"></span></span>
   <span class="c c--strip"><span class="sk sk--strip"></span></span>
   <span class="c c--size"><span class="sk sk--num"></span></span>
@@ -68,7 +68,7 @@
 {{/* A resolved catalog row. */}}
 {{define "repo_row"}}
 <li class="row repo {{.Tint}}{{if .Err}} is-degraded{{end}}" data-filter-key="{{.Name}}" data-href="{{.Href}}"{{if .Latest}} data-pull="{{.PullBase}}:{{.Latest}}"{{end}}>
-  <a class="row__link repo__name" href="{{.Href}}">{{if .Namespace}}<span class="ns">{{.Namespace}}/</span>{{end}}{{.Short}}</a>
+  <a class="row__link repo__name" href="{{.Href}}"><i class="nsdot" aria-hidden="true"></i>{{if .Namespace}}<span class="ns">{{.Namespace}}/</span>{{end}}{{.Short}}</a>
   {{- if .Err}}
   <span class="c c--tag"><span class="chip chip--err" title="{{.Err}}">unreadable</span></span>
   <span class="c c--strip"><span class="dash">—</span></span><span class="c c--size dash">—</span><span class="c c--count dash">—</span><span class="c c--plat dash">—</span><span class="c c--when dash">—</span>

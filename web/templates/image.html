@@ -10,7 +10,7 @@
       <button class="copy digest digest--full" type="button" data-copy="{{.Img.Digest}}" title="Copy {{.Img.Digest}}">{{.Img.Digest}}</button>
     </p>
   </div>
-  <dl class="cart">
+  <dl class="stats">
     <div><dt>Size</dt><dd>{{bytes .Img.TotalSize}}</dd></div>
     {{if .Created}}<div><dt>Created</dt><dd><time datetime="{{iso .Created}}" title="{{full .Created}}">{{since .Created}}</time></dd></div>{{end}}
     <div><dt>{{if .Img.IsIndex}}Platforms{{else}}Layers{{end}}</dt><dd>{{if .Img.IsIndex}}{{len .Platforms}}{{else}}{{len .Img.Layers}}{{end}}</dd></div>

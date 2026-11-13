@@ -84,6 +84,7 @@ type catalogPage struct {
 	Namespace  string
 	Chips      []nsChip
 	ChipsMore  int
+	AllNS      []nsChip
 	AllHref    string
 	ViewHref   string
 	Total      int
@@ -155,24 +156,27 @@ func (s *Server) buildCatalog(r *http.Request, reg config.Registry, client regis
 	}
 	page.Registry = len(all)
 
+	// Every namespace feeds the side rail on a desktop; the first few are
+	// also the chips that stand in for the rail on a phone.
 	counts := namespaceCounts(all)
 	page.Namespaces = len(counts)
-	for i, c := range counts {
-		if i >= maxChips {
-			page.ChipsMore = len(counts) - maxChips
-			break
-		}
+	for _, c := range counts {
 		label := c.Name
 		if label == "" {
 			label = "(root)"
 		}
-		page.Chips = append(page.Chips, nsChip{
+		page.AllNS = append(page.AllNS, nsChip{
 			Label:  label,
 			Count:  c.Count,
 			Tint:   s.catalog.Tint(reg.ID, c.Name),
 			Href:   base + "?ns=" + urlQueryEscape(c.Name),
 			Active: qv.Has("ns") && ns == c.Name,
 		})
+	}
+	page.Chips = page.AllNS
+	if len(page.Chips) > maxChips {
+		page.Chips = page.Chips[:maxChips]
+		page.ChipsMore = len(page.AllNS) - maxChips
 	}
 	if page.Flat {
 		page.ViewHref = base

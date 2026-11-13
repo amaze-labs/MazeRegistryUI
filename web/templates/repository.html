@@ -2,9 +2,9 @@
 <section class="pagehead">
   <div class="pagehead__main">
     <h1 class="title title--repo">{{if .Namespace}}<span class="title__dim">{{.Namespace}}/</span>{{end}}{{.Short}}</h1>
-    <p class="pagehead__sub"><i class="swatch {{.Tint}}" aria-hidden="true"></i><span>{{.Current.Host}}/{{.Repo}}</span></p>
+    <p class="pagehead__sub {{.Tint}}"><i class="nsdot" aria-hidden="true"></i><span>{{.Current.Host}}/{{.Repo}}</span></p>
   </div>
-  <dl class="cart">
+  <dl class="stats">
     <div><dt>Tags</dt><dd>{{.TagCount}}{{if .HasMore}}+{{end}}</dd></div>
     <div><dt>Releases</dt><dd>{{.Releases}}</dd></div>
     <div><dt>Pre-releases</dt><dd>{{.Pre}}</dd></div>

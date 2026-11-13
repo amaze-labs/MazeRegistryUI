@@ -13,8 +13,8 @@
 <link rel="icon" href="{{asset .BasePath "/static/icon-192.png"}}" type="image/png" sizes="192x192">
 <link rel="apple-touch-icon" href="{{asset .BasePath "/static/apple-touch-icon.png"}}">
 <link rel="manifest" href="{{asset .BasePath "/static/manifest.json"}}">
-<meta name="theme-color" content="#181c1f" media="(prefers-color-scheme: dark)">
-<meta name="theme-color" content="#f4f5f1" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1214" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#eef0ec" media="(prefers-color-scheme: light)">
 <meta name="apple-mobile-web-app-title" content="{{.UITitle}}">
 <!-- htmx would otherwise inject its own indicator <style>, which the CSP
      (rightly) blocks; app.css styles the indicator instead. -->
@@ -135,7 +135,7 @@
 
 {{define "logo"}}
 <svg class="brand__mark" width="28" height="28" viewBox="0 0 32 32" aria-hidden="true">
-  <rect width="32" height="32" rx="7" fill="#0c1118"/>
+  <rect width="32" height="32" rx="9" fill="#0c1118"/>
   <g transform="translate(4 4) scale(0.923)" fill="none" stroke="#ffb454" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
     <rect x="2.5" y="2.5" width="21" height="21" rx="6"/>
     <path d="M2.5 8.5h13 M10.5 13h13 M2.5 17.5h13"/>
