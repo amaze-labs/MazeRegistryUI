@@ -35,14 +35,6 @@ rejected on purpose.
     <td align="center"><em>Repository — tags load as they scroll into view</em></td>
     <td align="center"><em>Image — layer composition, config and raw manifest</em></td>
   </tr>
-  <tr>
-    <td width="50%"><img src="docs/images/mobile.png" alt="An image index on a narrow phone screen, with platform manifests and the layer bar stacked vertically"></td>
-    <td width="50%"><img src="docs/images/light.png" alt="The same interface in the light theme"></td>
-  </tr>
-  <tr>
-    <td align="center"><em>Mobile layout</em></td>
-    <td align="center"><em>Light theme</em></td>
-  </tr>
 </table>
 
 <p align="center">
