@@ -17,3 +17,15 @@
 </svg>
 {{- else -}}<span class="dash">—</span>{{- end -}}
 {{end}}
+
+{{/* Live search results under the top-bar search box. */}}
+{{define "jump_results"}}
+{{- if .Query}}
+  {{- if .Err}}<p class="jump__none">{{.Err}}</p>
+  {{- else if not .Items}}<p class="jump__none">No repository matches “{{.Query}}”</p>
+  {{- else}}
+  {{- range .Items}}<a class="jump__item {{.Tint}}" href="{{.Href}}" role="option"><i class="nsdot" aria-hidden="true"></i><span>{{range .Segs}}{{if .Hit}}<mark{{if .NS}} class="ns"{{end}}>{{.Text}}</mark>{{else if .NS}}<span class="ns">{{.Text}}</span>{{else}}<b>{{.Text}}</b>{{end}}{{end}}</span></a>{{end}}
+  <div class="jump__foot"><span>↑ ↓ to move · enter to open</span><a href="{{.AllHref}}">{{if gt .Total (len .Items)}}all {{.Total}} matches{{else}}open as a list{{end}}</a></div>
+  {{- end}}
+{{- end}}
+{{end}}

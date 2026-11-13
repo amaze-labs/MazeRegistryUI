@@ -272,6 +272,61 @@ func (s *Server) repoRowFor(reg config.Registry, name string) repoRow {
 	}
 }
 
+// --- live search -------------------------------------------------------
+
+// jumpLimit caps the live search results; the footer links to the full,
+// filtered catalog for the rest.
+const jumpLimit = 8
+
+type jumpItem struct {
+	Href string
+	Tint string
+	Segs []nameSeg
+}
+
+type jumpResults struct {
+	Items   []jumpItem
+	Query   string
+	Total   int
+	AllHref string
+	Err     string
+}
+
+// handleJump answers the search box in the top bar as the user types: the
+// first matches from the in-memory catalog index, so it costs no registry
+// call once the catalog has been listed.
+func (s *Server) handleJump(w http.ResponseWriter, r *http.Request) {
+	reg, client, ok := s.lookup(w, r)
+	if !ok {
+		return
+	}
+	q := strings.TrimSpace(r.URL.Query().Get("q"))
+	res := jumpResults{Query: q}
+	if q == "" {
+		s.renderPartial(w, r, "jump_results", res)
+		return
+	}
+	all, err := s.catalog.List(r.Context(), reg.ID, client, s.cfg.UI.CatalogPageSize, reg.CacheTTL)
+	if err != nil {
+		res.Err = friendlyError(err)
+		s.renderPartial(w, r, "jump_results", res)
+		return
+	}
+	matched := filterRepos(all, q)
+	res.Total = len(matched)
+	res.AllHref = joinPath(s.cfg.Server.BasePath, "/r/"+reg.ID) + "?q=" + urlQueryEscape(q)
+	terms := strings.Fields(strings.ToLower(q))
+	for _, name := range matched[:min(jumpLimit, len(matched))] {
+		ns, _ := splitRepo(name)
+		res.Items = append(res.Items, jumpItem{
+			Href: joinPath(s.cfg.Server.BasePath, "/r/"+reg.ID+"/repo/"+name),
+			Tint: s.catalog.Tint(reg.ID, ns),
+			Segs: markName(name, terms),
+		})
+	}
+	s.renderPartial(w, r, "jump_results", res)
+}
+
 // repoRowFull is a catalog row once its details have been looked up.
 type repoRowFull struct {
 	repoRow

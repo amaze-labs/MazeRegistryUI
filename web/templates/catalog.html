@@ -51,6 +51,11 @@
                hx-indicator="#search-busy">
         <span class="spinner" id="search-busy" aria-hidden="true"></span>
       </div>
+      {{if .Grouped}}<button class="foldall" type="button" data-foldall aria-label="Expand or collapse every namespace">
+        <svg class="foldall__open" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 15 5 5 5-5M7 9l5-5 5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <svg class="foldall__close" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 20 5-5 5 5M7 4l5 5 5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span class="foldall__label">collapse all</span>
+      </button>{{end}}
       <div class="seg" role="group" aria-label="View">
         <a class="seg__opt{{if not .Flat}} is-on{{end}}" href="{{.AllHref}}"{{if not .Flat}} aria-current="true"{{end}}>grouped</a>
         <a class="seg__opt{{if .Flat}} is-on{{end}}" href="{{.AllHref}}?view=flat"{{if .Flat}} aria-current="true"{{end}}>flat</a>

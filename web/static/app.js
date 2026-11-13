@@ -135,6 +135,99 @@
     if (row) row.scrollIntoView({ block: "center", behavior: "smooth" });
   });
 
+  /* ---- live search in the top bar ---- */
+
+  var jumpBox = doc.getElementById("jump-results");
+  var jumpInput = doc.querySelector(".jump__input");
+
+  function jumpItems() {
+    return jumpBox ? Array.prototype.slice.call(jumpBox.querySelectorAll(".jump__item")) : [];
+  }
+  function jumpClose() {
+    if (!jumpBox) return;
+    jumpBox.innerHTML = "";
+    if (jumpInput) jumpInput.setAttribute("aria-expanded", "false");
+  }
+  function jumpMove(step) {
+    var items = jumpItems();
+    if (!items.length) return;
+    var i = items.findIndex(function (el) { return el.classList.contains("is-active"); });
+    if (i >= 0) items[i].classList.remove("is-active");
+    i = i < 0 ? (step > 0 ? 0 : items.length - 1) : (i + step + items.length) % items.length;
+    items[i].classList.add("is-active");
+  }
+
+  if (jumpInput && jumpBox) {
+    jumpInput.addEventListener("keydown", function (ev) {
+      if (ev.key === "ArrowDown" || ev.key === "ArrowUp") {
+        ev.preventDefault();
+        jumpMove(ev.key === "ArrowDown" ? 1 : -1);
+      } else if (ev.key === "Enter") {
+        var active = jumpBox.querySelector(".jump__item.is-active") || (jumpItems().length === 1 ? jumpItems()[0] : null);
+        if (active) {
+          ev.preventDefault();
+          window.location.href = active.getAttribute("href");
+        }
+      } else if (ev.key === "Escape") {
+        jumpClose();
+      }
+    });
+    doc.body.addEventListener("htmx:afterSwap", function (ev) {
+      if (ev.detail && ev.detail.target === jumpBox) {
+        jumpInput.setAttribute("aria-expanded", jumpItems().length ? "true" : "false");
+        // Results that arrive after focus has left (a slow request) stay shut.
+        if (doc.activeElement !== jumpInput) jumpClose();
+      }
+    });
+    doc.addEventListener("click", function (ev) {
+      if (!ev.target.closest(".jump")) jumpClose();
+    });
+  }
+
+  /* ---- catalog: expand or collapse every namespace group ---- */
+
+  // The button reads the groups rather than keeping its own state, so it
+  // stays right after a group is toggled by hand or the body is replaced by
+  // a search. Opening a collapsed group still triggers its lazy row load.
+  function syncFoldAll() {
+    var btn = doc.querySelector("[data-foldall]");
+    if (!btn) return;
+    var groups = doc.querySelectorAll("#catalog-body details.group");
+    var anyOpen = Array.prototype.some.call(groups, function (g) { return g.open; });
+    btn.hidden = groups.length === 0;
+    btn.classList.toggle("is-collapsed", !anyOpen);
+    var label = btn.querySelector(".foldall__label");
+    if (label) label.textContent = anyOpen ? "collapse all" : "expand all";
+    btn.setAttribute("title", anyOpen ? "Collapse every namespace" : "Expand every namespace");
+  }
+
+  doc.addEventListener("click", function (ev) {
+    var btn = ev.target.closest("[data-foldall]");
+    if (!btn) return;
+    var groups = doc.querySelectorAll("#catalog-body details.group");
+    var anyOpen = Array.prototype.some.call(groups, function (g) { return g.open; });
+    for (var i = 0; i < groups.length; i++) groups[i].open = !anyOpen;
+    syncFoldAll();
+  });
+  doc.addEventListener("toggle", function (ev) {
+    if (ev.target.matches && ev.target.matches("details.group")) syncFoldAll();
+  }, true);
+  doc.body.addEventListener("htmx:afterSwap", syncFoldAll);
+
+  // The health probe only swaps the dot; the registry card's status line
+  // follows it, so it does not say "checking" next to a green dot.
+  doc.body.addEventListener("htmx:afterSettle", function (ev) {
+    var dot = ev.detail && ev.detail.elt;
+    if (!dot || !dot.classList || !dot.classList.contains("dot") || !dot.closest(".regcard")) return;
+    var state = dot.classList.contains("dot--ok") ? "ok" : dot.classList.contains("dot--down") ? "down" : "unknown";
+    var line = doc.querySelector(".regcard .state");
+    if (!line) return;
+    line.className = "state state--" + state;
+    line.textContent = state === "ok" ? "reachable" : state === "down" ? "down" : "checking";
+    if (dot.title) line.title = dot.title;
+  });
+  syncFoldAll();
+
   /* ---- phone: a tap opens a clamped layer instruction ---- */
 
   doc.addEventListener("click", function (ev) {
@@ -184,7 +277,10 @@
   // would make the page look permanently busy.
   function isBackgroundLoad(detail) {
     var t = detail && detail.elt;
-    return !!(t && t.getAttribute && (t.getAttribute("hx-trigger") || "").indexOf("revealed") !== -1);
+    if (!t || !t.getAttribute) return false;
+    // Live search fires on every keystroke; it must not flash the bar either.
+    if (t.classList && t.classList.contains("jump__input")) return true;
+    return (t.getAttribute("hx-trigger") || "").indexOf("revealed") !== -1;
   }
 
   doc.body.addEventListener("htmx:beforeRequest", function (ev) {

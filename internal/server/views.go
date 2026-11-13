@@ -6,6 +6,7 @@ import (
 	"hash/fnv"
 	"regexp"
 	"sort"
+	"strings"
 
 	"github.com/amaze-labs/MazeRegistryUI/internal/registry"
 )
@@ -128,15 +129,32 @@ func tagKind(tag string) string {
 }
 
 // pickLatest chooses the tag a catalog row describes. Tags arrive sorted
-// newest first with "latest" on top; a version says more than "latest" does,
-// so the first non-"latest" tag wins when there is one.
+// newest version first with "latest" on top, but a natural sort also puts
+// words such as "buildcache" or "main" ahead of every number. So the first
+// plain version wins, then the first pre-release, and only then a moving
+// tag — preferring anything over "latest", which says the least.
 func pickLatest(tags []string) string {
+	var pre, moving string
 	for _, t := range tags {
-		if t != "latest" {
+		switch tagKind(t) {
+		case "release":
 			return t
+		case "pre":
+			if pre == "" {
+				pre = t
+			}
+		default:
+			if moving == "" && t != "latest" {
+				moving = t
+			}
 		}
 	}
-	if len(tags) > 0 {
+	switch {
+	case pre != "":
+		return pre
+	case moving != "":
+		return moving
+	case len(tags) > 0:
 		return tags[0]
 	}
 	return ""
@@ -166,5 +184,47 @@ func namespaceCounts(repos []string) []nsCount {
 		}
 		return out[i].Name < out[j].Name
 	})
+	return out
+}
+
+// nameSeg is a run of a repository name that shares the same styling: inside
+// the namespace prefix or not, and matching the query or not.
+type nameSeg struct {
+	Text string
+	NS   bool
+	Hit  bool
+}
+
+// markName splits a repository name into runs for the live search results:
+// every case-insensitive occurrence of every term is a hit, and the
+// "namespace/" prefix is told apart so it can be drawn dimmer.
+func markName(name string, terms []string) []nameSeg {
+	lower := strings.ToLower(name)
+	hit := make([]bool, len(name))
+	for _, t := range terms {
+		if t == "" {
+			continue
+		}
+		for from := 0; from <= len(lower)-len(t); {
+			i := strings.Index(lower[from:], t)
+			if i < 0 {
+				break
+			}
+			for k := from + i; k < from+i+len(t); k++ {
+				hit[k] = true
+			}
+			from += i + len(t)
+		}
+	}
+	nsEnd := strings.LastIndex(name, "/") + 1
+	var out []nameSeg
+	for i := 0; i < len(name); i++ {
+		ns, h := i < nsEnd, hit[i]
+		if n := len(out); n > 0 && out[n-1].NS == ns && out[n-1].Hit == h {
+			out[n-1].Text += name[i : i+1]
+			continue
+		}
+		out = append(out, nameSeg{Text: name[i : i+1], NS: ns, Hit: h})
+	}
 	return out
 }

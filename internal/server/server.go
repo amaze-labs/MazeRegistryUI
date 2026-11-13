@@ -120,6 +120,7 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("GET /x/tags/{rid}/{repo...}", s.handleTagRows)
 	mux.HandleFunc("GET /x/tag/{rid}/{repo...}", s.handleTagRow)
 	mux.HandleFunc("GET /x/health/{rid}", s.handleRegistryHealth)
+	mux.HandleFunc("GET /x/jump/{rid}", s.handleJump)
 	mux.HandleFunc("POST /x/theme", s.handleTheme)
 
 	var h http.Handler = mux

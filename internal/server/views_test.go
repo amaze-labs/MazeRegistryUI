@@ -82,6 +82,9 @@ func TestPickLatest(t *testing.T) {
 		{[]string{"latest"}, "latest"},
 		{[]string{"latest", "1.9.0", "1.8.0"}, "1.9.0"},
 		{[]string{"2.0", "1.0"}, "2.0"},
+		{[]string{"latest", "buildcache", "0.6.1", "0.6.0"}, "0.6.1"},
+		{[]string{"main", "2.0.0-rc.1"}, "2.0.0-rc.1"},
+		{[]string{"latest", "main", "edge"}, "main"},
 	}
 	for _, c := range cases {
 		if got := pickLatest(c.tags); got != c.want {
@@ -251,4 +254,42 @@ func TestImagePagePullByDigest(t *testing.T) {
 	assertContains(t, html, "layerbar__seg is-first", "the first layer band")
 	assertContains(t, html, "is-top", "the largest layer")
 	assertContains(t, html, `.share[data-layer="2"] .share__fill{width:90.00%}`, "the share bar width")
+}
+
+func TestMarkName(t *testing.T) {
+	t.Parallel()
+	got := markName("team/api-gateway", []string{"api", "team"})
+	var b strings.Builder
+	for _, seg := range got {
+		switch {
+		case seg.Hit:
+			b.WriteString("[" + seg.Text + "]")
+		case seg.NS:
+			b.WriteString("(" + seg.Text + ")")
+		default:
+			b.WriteString(seg.Text)
+		}
+	}
+	if s := b.String(); s != "[team](/)[api]-gateway" {
+		t.Errorf("markName = %q, want \"[team](/)[api]-gateway\"", s)
+	}
+}
+
+func TestLiveSearch(t *testing.T) {
+	t.Parallel()
+	s, fakes := newTestServer(t, testConfigYAML)
+	fakes["local"].Repos = []string{"infra/redis", "team/api", "team/api-gateway", "team/web"}
+
+	empty := body(t, get(t, s, "/x/jump/local?q="))
+	assertNotContains(t, empty, "jump__item", "results for an empty query")
+
+	html := body(t, get(t, s, "/x/jump/local?q=team+api"))
+	assertContains(t, html, `href="/r/local/repo/team/api"`, "the first match")
+	assertContains(t, html, `href="/r/local/repo/team/api-gateway"`, "the second match")
+	assertNotContains(t, html, "team/web", "a repository missing one of the terms")
+	assertContains(t, html, "<mark", "the highlighted match")
+	assertContains(t, html, `href="/r/local?q=team%20api"`, "the link to the full filtered list")
+
+	none := body(t, get(t, s, "/x/jump/local?q=nothing-here"))
+	assertContains(t, none, "No repository matches", "the empty state")
 }
