@@ -135,6 +135,14 @@
     if (row) row.scrollIntoView({ block: "center", behavior: "smooth" });
   });
 
+  /* ---- phone: a tap opens a clamped layer instruction ---- */
+
+  doc.addEventListener("click", function (ev) {
+    var layer = ev.target.closest(".layer");
+    if (!layer || ev.target.closest("button, a")) return;
+    layer.classList.toggle("is-open");
+  });
+
   /* ---- registry picker ---- */
 
   var picker = doc.getElementById("registry-picker");
