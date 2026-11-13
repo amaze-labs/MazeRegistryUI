@@ -15,15 +15,20 @@ Copyright © Big Sky Software
 > Permission to use, copy, modify, and/or distribute this software for any
 > purpose with or without fee is hereby granted.
 
-### IBM Plex Mono
-`web/static/fonts/plex-mono-{400,500,600}.woff2`
-Copyright © 2017 IBM Corp. with Reserved Font Name "Plex"
-**SIL Open Font License 1.1 (OFL-1.1)** — https://github.com/IBM/plex/blob/master/LICENSE.txt
+### Archivo
+`web/static/fonts/archivo-var.woff2`
+Copyright © 2016 The Archivo Project Authors (https://github.com/Omnibus-Type/Archivo)
+**SIL Open Font License 1.1 (OFL-1.1)** — https://github.com/Omnibus-Type/Archivo/blob/master/OFL.txt
 
-The subsetted `woff2` files here are the Latin ranges as served by Google
-Fonts. Under the OFL these files may be redistributed and embedded, including
-in this binary; they may not be sold on their own, and any derivative font
-must not use the reserved name "Plex".
+### JetBrains Mono
+`web/static/fonts/jetbrains-mono-var.woff2`
+Copyright © 2020 The JetBrains Mono Project Authors (https://github.com/JetBrains/JetBrainsMono)
+**SIL Open Font License 1.1 (OFL-1.1)** — https://github.com/JetBrains/JetBrainsMono/blob/master/OFL.txt
+
+Both files are the variable fonts' Latin subset as served by Google Fonts
+(Archivo with its width and weight axes, JetBrains Mono with its weight axis).
+Under the OFL they may be redistributed and embedded, including in this
+binary; they may not be sold on their own.
 
 ## Linked into the binary at build time
 

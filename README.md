@@ -23,36 +23,39 @@ rejected on purpose.
 ## Screenshots
 
 <p align="center">
-  <img src="docs/images/catalog.png" alt="Catalog view listing repositories with an instant search box and tag counts" width="900">
+  <img src="docs/images/catalog.png" alt="Catalog grouped by namespace: each repository with its newest tag, a layer strip, size, tag count, platforms and last push" width="900">
 </p>
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/images/repository.png" alt="Repository view with lazily loaded tag rows showing size, platforms and age"></td>
-    <td width="50%"><img src="docs/images/image.png" alt="Image detail with the proportional layer composition bar, labels and raw manifest"></td>
+    <td width="50%"><img src="docs/images/repository.png" alt="Repository view: tag rows with platforms, layer strip, size, age and digest, filter chips by tag kind and a pull bar that follows the selected row"></td>
+    <td width="50%"><img src="docs/images/image.png" alt="Image detail: proportional layer bar with the largest layer highlighted, a layer table with each layer's share, configuration and environment"></td>
   </tr>
   <tr>
-    <td align="center"><em>Repository — tags load as they scroll into view</em></td>
+    <td align="center"><em>Repository — tags resolve as they scroll into view; the pull bar follows the selected row</em></td>
     <td align="center"><em>Image — layer composition, config and raw manifest</em></td>
   </tr>
 </table>
 
-<p align="center">
-  <img src="docs/images/picker.png" alt="The header picker open, listing two configured registries with their hostnames and reachability" width="900">
-  <br><em>Every configured registry in one place, with a live reachability check</em>
-</p>
-
 ## Features
 
-- Multiple registries in one instance, switched from a picker in the header,
-  each with its own credentials, timeouts and permissions.
-- Catalog with instant in-memory search; the full repository list is indexed
-  server-side, so filtering does not re-walk the registry.
+- Multiple registries in one instance, one tab each in the header (a picker on
+  a phone), each with its own credentials, timeouts and permissions.
+- Catalog grouped by namespace, built for registries with hundreds of
+  repositories: each row shows the newest tag, its size, platforms, age and a
+  layer strip (first layer, largest layer, the rest). Small registries open
+  every group; large ones load a group's rows the first time it is opened.
+  A flat view and namespace chips are one click away.
+- Instant in-memory search; the full repository list is indexed server-side,
+  so filtering does not re-walk the registry.
+- Keyboard first: `/` to filter, `j`/`k` to move, `enter` to open, `c` to copy
+  the pull command of the selected row.
 - Tag rows that resolve lazily as they scroll into view, bounded by a
-  per-registry concurrency limit.
-- Image detail: proportional layer composition bar with the three largest
-  layers highlighted, the build command behind each layer, labels, environment,
-  config, annotations and the raw manifest.
+  per-registry concurrency limit, filterable by kind (releases, pre-releases,
+  moving tags such as `latest`, which show the version they point at).
+- Image detail: proportional layer bar with the largest layer highlighted, a
+  layer table with each layer's share and build command, labels, environment,
+  config, annotations and the raw manifest; pull by tag or by digest.
 - Multi-architecture indexes: every child manifest is listed with its platform,
   and shared layers are counted once in the total size.
 - Copyable `docker pull` command, with an overridable pull hostname.
@@ -62,8 +65,8 @@ rejected on purpose.
   Distribution).
 - Dark and light themes, remembered per visitor.
 - `/healthz` endpoint, structured logs (text or JSON), graceful shutdown.
-- No CDN, no Node build step: templates, CSS, IBM Plex Mono and HTMX are
-  embedded in the binary, so it runs air-gapped.
+- No CDN, no Node build step: templates, CSS, the Archivo and JetBrains Mono
+  fonts and HTMX are embedded in the binary, so it runs air-gapped.
 
 ## Quickstart
 
@@ -182,6 +185,7 @@ Deploying this as a network service does not by itself oblige you to publish
 changes; the GPL is triggered by distribution, not by use. If you distribute a
 modified build, the modified source must go with it.
 
-Bundled third-party components — htmx (0BSD), IBM Plex Mono (OFL-1.1) and
+Bundled third-party components — htmx (0BSD), Archivo and JetBrains Mono
+(OFL-1.1) and
 gopkg.in/yaml.v3 (MIT and Apache-2.0) — keep their own licences: see
 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).

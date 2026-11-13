@@ -7,8 +7,8 @@ The deep reference is `docs/ARCHITECTURE.md` (request path, caches, templates, s
 ## Stack
 
 - **Go 1.25, standard library first.** The only third-party module is `gopkg.in/yaml.v3`. Routing is `net/http`'s `ServeMux` with Go 1.22+ patterns — no router, no framework, no ORM, no DI. A new dependency needs a good reason and a GPLv3-compatible licence (`THIRD-PARTY-NOTICES.md`).
-- **Server-rendered HTML** with `html/template`, **HTMX** for the few interactive parts (lazy tag rows, catalog search, picker health dots). The page must be useful before any script runs: HTMX is progressive enhancement, never load-bearing.
-- **No Node toolchain.** CSS, fonts (IBM Plex Mono), `htmx.min.js`, `theme.js`, `app.js` and icons are committed under `web/static/` and embedded with `embed.FS`. Nothing is fetched from a CDN — that is what makes the strict CSP and air-gapped installs possible. Don't add a bundler, a CSS framework or a webfont from a third-party origin.
+- **Server-rendered HTML** with `html/template`, **HTMX** for the few interactive parts (lazy catalog and tag rows, collapsed namespace groups, catalog search, health dots). The page must be useful before any script runs: HTMX is progressive enhancement, never load-bearing.
+- **No Node toolchain.** CSS, fonts (Archivo and JetBrains Mono, variable woff2), `htmx.min.js`, `theme.js`, `app.js` and icons are committed under `web/static/` and embedded with `embed.FS`. Nothing is fetched from a CDN — that is what makes the strict CSP and air-gapped installs possible. Don't add a bundler, a CSS framework or a webfont from a third-party origin.
 - **Deployment**: one static binary (`CGO_ENABLED=0`) in `gcr.io/distroless/static-debian12:nonroot` (uid 65532). No shell in the image, so no `HEALTHCHECK` — probes come from outside on `/healthz`. One YAML config file, credentials via `${VAR}` / `*_env`.
 
 ## Repository layout
@@ -33,7 +33,7 @@ The same rules, for humans, are in `CONTRIBUTING.md`.
 2. **Tracked issues close themselves**: reference the issue from every commit that implements it, and make the LAST one `Closes #<n>` so the push closes it.
 3. **Issue first, and nothing personal in it**: open the issue before writing the code that answers it (with `file:line` evidence), and reference related ones (`Refs #<n>`). The repo is public: issues, commits, PR bodies, tests, fixtures, config examples and screenshots carry nothing from a real installation — no real registry hostnames, domains, repository names, IPs, usernames or tokens. When an example helps, invent a neutral one (`registry.example.com`, `team/api`, `ci-reader`).
 4. **Take what you work on**: when work on an issue or a pull request starts, assign it to the person you are working for (`gh issue edit <n> --add-assignee @me`, `gh pr edit <n> --add-assignee @me`) — unless it is already assigned to someone else: then ask before starting.
-5. **Screenshots come from the demo, never from a real registry**: `docs/images/` (catalog, repository, image, picker) are taken from `docs/demo/` — `sh docs/demo/seed.sh` starts the two invented registries, `bin/mazeregistryui -config docs/demo/config.yaml` serves them on `127.0.0.1:18080` — at a 1440×900 viewport, device scale factor 2, dark theme. A change that shows on a screenshot retakes it in the same change. The repository and tag names in `seed.sh` are the contract with the screenshots: renaming or dropping one means retaking. The UI caches tag rows, so restart it after re-seeding.
+5. **Screenshots come from the demo, never from a real registry**: `docs/images/` (catalog, repository, image) are taken from `docs/demo/` — `sh docs/demo/seed.sh` starts the two invented registries, `bin/mazeregistryui -config docs/demo/config.yaml` serves them on `127.0.0.1:18080` — at a 1440×900 viewport, device scale factor 2, dark theme. A change that shows on a screenshot retakes it in the same change. The repository and tag names in `seed.sh` are the contract with the screenshots: renaming or dropping one means retaking. The UI caches tag rows, so restart it after re-seeding.
 6. **SPDX header on every new first-party source file**: `// SPDX-License-Identifier: GPL-3.0-or-later` on the first line, a blank line, then the package comment (so it doesn't become documentation). Vendored files keep their own headers and get a `THIRD-PARTY-NOTICES.md` entry.
 
 ## Local dev quick reference
@@ -71,6 +71,10 @@ The same rules, for humans, are in `CONTRIBUTING.md`.
 - **Tag ordering**: the registry's own order sets the pagination cursor BEFORE the natural display sort (`latest` first) rearranges the page — don't swap those steps.
 - **Index sizes count distinct blobs once**; attestation children (`unknown/unknown`) are listed but excluded from platforms; a missing config blob is not fatal. Product decisions, not accidents.
 - **A stale catalog beats an error page**: a failed refresh serves the previous list.
+- **The look is the "survey sheet"** (`app.css` header): square corners, ink rules, Archivo for headings, JetBrains Mono for every value, the logo amber as the only accent. Colours are tokens with one name and a light and a dark value (`[data-theme]`); components use only the names. Don't add a colour outside the token block.
+- **Layer strips are SVG, not CSS widths**: rows arrive as HTMX fragments, which cannot carry the page's style nonce. Anything proportional inside a fragment follows the same rule; on a full page the nonced `<style>` (`layerCSS`) is fine.
+- **Namespace colours come from `catalogCache.Tint`** (alphabetical slots, hash fallback) — never compute them anywhere else, or the catalog, the repository page and the image page will disagree.
+- **Lazy rows inside a group set `hx-target="this"`**: htmx 2 inherits attributes, and the group's own `hx-target` would otherwise apply to them.
 
 ## When in doubt
 

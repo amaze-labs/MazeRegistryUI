@@ -58,15 +58,15 @@ Fragment endpoints live under `/x/` and return partials rather than pages:
 | Route | Purpose |
 | --- | --- |
 | `GET /{$}` | Redirect to the default registry. |
-| `GET /r/{rid}` | Catalog page. |
+| `GET /r/{rid}` | Catalog page: grouped by namespace, or a flat list with `?view=flat`, `?ns=` or `?q=`. |
 | `GET /r/{rid}/repo/{repo...}` | Repository (tag list). |
 | `GET /r/{rid}/image/{repo...}?ref=` | Image detail. |
 | `POST /r/{rid}/delete` | Manifest deletion. |
-| `GET /x/catalog/{rid}` | Catalog rows — search and "load more". |
-| `GET /x/repocount/{rid}/{repo...}` | Tag count badge on a catalog row. |
+| `GET /x/catalog/{rid}` | Catalog rows — the search box (`part=body`: the whole body, groups or list), "load more", and the first opening of a collapsed group (`ns=`). |
+| `GET /x/reporow/{rid}/{repo...}` | One resolved catalog row: tag count, newest tag, its size, platforms, age and layer strip. |
 | `GET /x/tags/{rid}/{repo...}` | The next page of tag rows. |
 | `GET /x/tag/{rid}/{repo...}` | One resolved tag row. |
-| `GET /x/health/{rid}` | Status dot in the registry picker. |
+| `GET /x/health/{rid}` | Status dot of a registry (header tabs, phone picker, page head). |
 | `POST /x/theme` | Set the theme cookie, redirect back. |
 | `GET /healthz` | Liveness/readiness JSON. |
 | `GET /static/` | Embedded assets. |
@@ -167,7 +167,7 @@ requests into one — and token endpoints are exactly what registries rate-limit
 ### The health cache
 
 `healthCache` in `server.go` remembers each registry's reachability for 30
-seconds so opening the picker does not re-probe every endpoint. The probes are
+seconds so every page load does not re-probe every endpoint. The probes are
 also staggered client-side (`HealthDelay`, 120 ms apart) so they do not all
 fire in the same millisecond.
 
@@ -203,6 +203,40 @@ element, so there is no lock around the results, and a child that fails to
 resolve is left `nil` rather than failing the whole index — one broken platform
 should not hide the other five.
 
+### The catalog: groups, rows and strips
+
+The catalog is grouped by namespace (`buildCatalog`). The grouping costs
+nothing — it is computed from the in-memory index — and it decides how much
+of a large registry is drawn at all:
+
+- **Up to `catalog_page_size` repositories**, every group is rendered open
+  with its rows.
+- **Beyond that**, groups render closed with only their counts, and a
+  group's rows are fetched (`/x/catalog/{rid}?ns=`) the first time it is
+  opened (`hx-trigger="toggle once"`). A registry with thousands of
+  repositories draws a page of headers, not thousands of rows.
+- **A single namespace, a filter, `?ns=` or `?view=flat`** give the plain
+  paginated list instead.
+
+Each row then resolves lazily through `/x/reporow`, under the same
+per-registry semaphore as tag rows: the tag list (for the count), the newest
+tag (`pickLatest` — a version beats `latest`), its `TagSummary`, and the
+image by digest for the layer strip. The summary has just cached that
+manifest under its digest, so the last call is a cache hit.
+
+The **layer strip** (`stripFromLayers`) splits an image into its first
+layer (usually the base image's root filesystem, hatched), its largest
+remaining layer (in the namespace's colour) and the rest (dark). It is drawn
+as inline SVG geometry, not CSS widths: rows arrive as HTMX fragments, which
+cannot carry the page's style nonce, and the CSP forbids style attributes.
+SVG `x`/`width` attributes are neither.
+
+**Namespace colours** (`catalogCache.Tint`) are handed out in alphabetical
+order from an eight-slot palette once a registry's catalog has been listed,
+so up to eight namespaces never share a colour; before that, a hash of the
+name stands in. A new namespace can shift the colours after it — the price
+of not colliding.
+
 ---
 
 ## Templates
@@ -213,16 +247,16 @@ should not hide the other five.
 web/
   embed.go              # embed.FS for templates/ and static/
   templates/
-    base.html           # the shell: header, picker, breadcrumbs, footer
+    base.html           # the shell: header (registry tabs, phone picker), breadcrumbs, footer
     catalog.html        # each page defines its own "content" block
     repository.html
     image.html
     error.html
     partials/
-      catalog_rows.html # "catalog_rows", "repo_count"
+      catalog_rows.html # "catalog_body", "catalog_rows", "repo_rows", "repo_row"
       tag_rows.html     # "tag_rows", "tag_row"
-      misc.html         # "banner", "health_dot"
-  static/               # app.css, app.js, theme.js, htmx.min.js, icon.svg, fonts/
+      misc.html         # "banner", "health_dot", "strip"
+  static/               # app.css, app.js, theme.js, htmx.min.js, icons, fonts/ (Archivo, JetBrains Mono)
 ```
 
 **One template set per page.** Every page defines a block named `content`, so
@@ -251,7 +285,13 @@ changed — there is no cache-invalidation problem to manage.
 
 **Client-side JavaScript** is three small files: `htmx.min.js`, `theme.js` (a
 pre-paint script that reads the theme cookie so there is no flash of the wrong
-theme) and `app.js` (copy buttons, layer bar hover, delete confirmation).
+theme) and `app.js` (copy buttons, the tag filter and kind chips, row
+selection and the keyboard — `/`, `j`/`k`, `enter`, `c` — the pull bar that
+follows the selected tag, pull by tag or digest, the "= 1.9.0" marker on
+moving tags once their digests are known, layer bar hover, delete
+confirmation). htmx's own indicator stylesheet is switched off with the
+`htmx-config` meta tag: the CSP would block it, and `app.css` styles the
+indicator anyway.
 Nothing is fetched from a CDN, which is what lets the whole thing run
 air-gapped and what makes the strict CSP below possible.
 

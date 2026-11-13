@@ -76,7 +76,7 @@ Presentation settings. Nothing here affects what the server is allowed to do.
 | --- | --- | --- | --- |
 | `title` | string | `MazeRegistryUI` | Name in the header and in `<title>`. Useful to distinguish staging from production at a glance. |
 | `theme` | string | `auto` | Initial theme: `auto`, `dark` or `light`. `auto` follows the visitor's system preference. A visitor's own choice is stored in the `mrui_theme` cookie and always wins. |
-| `catalog_page_size` | int | `50` | Repositories rendered per catalog page, and the page size used when walking the registry catalog. |
+| `catalog_page_size` | int | `50` | Repositories rendered per page of a flat catalog list, and the page size used when walking the registry catalog. It also decides the grouped overview: up to this many repositories every namespace group opens with its rows; beyond it, groups start closed and load their rows when opened. |
 | `tag_page_size` | int | `50` | Tags requested per page on a repository view. |
 | `default_registry` | string | first entry's `id` | The registry selected on first visit and by `/`. Must match a configured `id`. |
 | `show_pull_command` | bool | `false` | Render a copyable `docker pull …` line on the image view. |
