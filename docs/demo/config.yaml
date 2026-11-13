@@ -1,0 +1,32 @@
+# The configuration the README screenshots are taken with: two INVENTED
+# registries started by docs/demo/seed.sh. The hostnames under pull_host are
+# made up on purpose — screenshots never show a real registry.
+server:
+  addr: "127.0.0.1:18080"
+  base_path: ""
+  log_level: warn
+
+ui:
+  title: MazeRegistryUI
+  theme: dark
+  show_pull_command: true
+  default_registry: platform
+
+registries:
+  - id: platform
+    name: Platform
+    url: http://127.0.0.1:5001
+    description: Build artefacts and internal services
+    pull_host: registry.amaze.internal
+    delete_enabled: true
+    auth:
+      type: none
+
+  - id: release
+    name: Release
+    url: http://127.0.0.1:5002
+    description: Signed images promoted for production
+    pull_host: release.amaze.io
+    delete_enabled: false
+    auth:
+      type: none

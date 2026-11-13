@@ -84,6 +84,10 @@ Scopes in use: `cmd`, `server`, `registry`, `config`, `ui`.
    The loader runs with `KnownFields(true)`, so an undocumented key is a hard
    startup failure for whoever guesses it wrong.
 5. Describe what changed and why in the PR body.
+6. If the change shows on a README screenshot, retake it from the demo
+   registries, never from a real one: `sh docs/demo/seed.sh`, then
+   `bin/mazeregistryui -config docs/demo/config.yaml`, at 1440×900 with a
+   device scale factor of 2, dark theme. `sh docs/demo/seed.sh down` cleans up.
 
 ## Releases
 
