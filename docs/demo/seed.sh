@@ -1,5 +1,5 @@
 #!/bin/sh
-# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-License-Identifier: AGPL-3.0-or-later
 #
 # Starts the two INVENTED registries the README screenshots are taken from
 # ("Platform" and "Release") and fills them with real public images under

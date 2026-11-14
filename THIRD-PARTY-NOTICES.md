@@ -1,8 +1,8 @@
 # Third-party notices
 
-MazeRegistryUI is distributed under the GNU General Public License v3.0 or
-later. It embeds and redistributes the components below, each under its own
-licence. All of them are compatible with the GPLv3, and none of them are
+MazeRegistryUI is distributed under the GNU Affero General Public License v3.0
+or later. It embeds and redistributes the components below, each under its own
+licence. All of them are compatible with the AGPLv3, and none of them are
 covered by this project's licence.
 
 ## Bundled in the binary and shipped to the browser
