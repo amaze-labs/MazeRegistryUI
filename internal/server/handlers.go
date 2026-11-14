@@ -931,6 +931,7 @@ func (s *Server) layout(r *http.Request, current config.Registry, title string) 
 		Theme:       s.theme(r),
 		Asset:       s.asset,
 		Version:     version.Version,
+		Source:      version.Source,
 		FooterNote:  s.cfg.UI.FooterNote,
 		CurrentPath: joinPath(s.cfg.Server.BasePath, r.URL.RequestURI()),
 		Nonce:       nonceFrom(r.Context()),

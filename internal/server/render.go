@@ -22,6 +22,7 @@ type Layout struct {
 	Theme       string
 	Asset       string
 	Version     string
+	Source      string
 	FooterNote  string
 	Registries  []RegistryOption
 	Current     RegistryOption

@@ -10,6 +10,10 @@ var (
 	Version   = "dev"
 	Commit    = "unknown"
 	BuildDate = "unknown"
+	// Source is where the code of this build can be obtained; the UI footer
+	// links to it. The AGPL asks a modified build that people use over a
+	// network to offer its own source, so a fork sets this to its repository.
+	Source = "https://github.com/amaze-labs/MazeRegistryUI"
 )
 
 // String renders the full version line shown in logs and the UI footer.

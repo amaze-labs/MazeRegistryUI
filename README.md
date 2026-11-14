@@ -102,11 +102,14 @@ see [Deployment](docs/DEPLOYMENT.md).
 
 ## License
 
-GNU General Public License v3.0 or later — see [LICENSE](LICENSE).
+GNU Affero General Public License v3.0 or later — see [LICENSE](LICENSE).
 
-Deploying this as a network service does not by itself oblige you to publish
-changes; the GPL is triggered by distribution, not by use. If you distribute a
-modified build, the modified source must go with it.
+Running it unmodified, privately or at work, asks nothing of you. If you
+modify it and let other people use your version over a network, you must
+offer them the source of that version too — the footer's source link is the
+place for it, and a modified build should point it at its own source
+(`-ldflags "-X github.com/amaze-labs/MazeRegistryUI/internal/version.Source=…"`).
+The same goes for distributing a modified build.
 
 Bundled third-party components — htmx (0BSD), the Archivo and JetBrains Mono
 fonts (OFL-1.1) and gopkg.in/yaml.v3 (MIT and Apache-2.0) — keep their own

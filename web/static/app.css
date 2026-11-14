@@ -577,6 +577,9 @@ time.is-fresh::before { content: ""; display: inline-block; width: 6px; height: 
   font-size: 10.5px; color: var(--faint);
 }
 
+.footer__source { color: var(--ink-2); text-decoration: underline; text-decoration-color: var(--line-2); text-underline-offset: 3px; }
+.footer__source:hover { color: var(--text); text-decoration-color: currentColor; }
+
 .toast {
   position: fixed; left: 50%; bottom: 24px; z-index: 60;
   transform: translate(-50%, 12px); opacity: 0; pointer-events: none;

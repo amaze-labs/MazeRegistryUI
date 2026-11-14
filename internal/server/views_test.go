@@ -293,3 +293,12 @@ func TestLiveSearch(t *testing.T) {
 	none := body(t, get(t, s, "/x/jump/local?q=nothing-here"))
 	assertContains(t, none, "No repository matches", "the empty state")
 }
+
+func TestFooterLinksTheSource(t *testing.T) {
+	t.Parallel()
+	s, fakes := newTestServer(t, testConfigYAML)
+	fakes["local"].Repos = []string{"team/api"}
+	html := body(t, get(t, s, "/r/local"))
+	assertContains(t, html, `href="https://github.com/amaze-labs/MazeRegistryUI"`, "the source link the AGPL asks for")
+	assertContains(t, html, "AGPL-3.0", "the licence in the footer")
+}
