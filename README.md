@@ -1,183 +1,104 @@
 # MazeRegistryUI
 
-A single-binary, server-rendered web UI for browsing OCI and Docker registries.
+A self-hosted **web UI for your OCI and Docker registries**: every repository,
+tag, layer and manifest of as many registries as you run — server-rendered,
+one binary and one config file, light enough for a phone.
 
-[![Release](https://github.com/amaze-labs/MazeRegistryUI/actions/workflows/release.yml/badge.svg)](https://github.com/amaze-labs/MazeRegistryUI/actions/workflows/release.yml)
-[![Go](https://img.shields.io/badge/go-1.25-00ADD8?logo=go&logoColor=white)](https://go.dev/dl/)
-[![License](https://img.shields.io/badge/license-GPL--3.0--or--later-blue)](LICENSE)
-[![GHCR](https://img.shields.io/badge/ghcr.io-amaze--labs%2Fmazeregistryui-2b3137?logo=github)](https://github.com/amaze-labs/MazeRegistryUI/pkgs/container/mazeregistryui)
+![MazeRegistryUI catalog: a side rail of namespaces and the repositories grouped by namespace, each with its newest tag, a layer strip, size, tag count, platforms and last push](docs/images/catalog.png)
 
-MazeRegistryUI exists because the common alternative, `joxit/docker-registry-ui`,
-is a JavaScript single-page app that ships a large bundle to the browser and
-talks to the registry from there. This one renders HTML on the server and uses
-HTMX for the few interactive parts, so the page is useful before any script
-runs and works on a phone. The browser never contacts a registry: every call is
-proxied by the backend, which keeps credentials server-side and removes the
-need for CORS configuration on the registry. One binary, one config file, and a
-header picker for as many registries as you list.
+## What it does
 
-It speaks the OCI Distribution Specification v1.1, as served by Distribution
-3.x, Harbor, GHCR, Gitea and others. Legacy Docker manifest schema 1 is
-rejected on purpose.
+- **Every registry in one place** — one tab per registry, each with its own
+  credentials, timeouts and permissions; a live reachability check on each.
+- **A catalog that scales** — repositories grouped by namespace, each row with
+  its newest tag, size, platforms, age and a layer strip. Large registries
+  load a group the first time it is opened; search is instant, from any page.
+- **Tags and images in depth** — tags filtered by kind (releases,
+  pre-releases, moving tags such as `latest` and the version they point at),
+  the layer composition with the build command behind each layer,
+  multi-architecture indexes, labels, environment, annotations and the raw
+  manifest.
+- **Made for daily use** — a copyable `docker pull` by tag or by digest,
+  keyboard navigation (`/`, `j`/`k`, `enter`, `c`), dark and light themes, and
+  manifest deletion where you allow it.
+- **Works with what you run** — OCI Distribution v1.1: Distribution 3.x,
+  Harbor, GHCR, Gitea, Zot, Artifactory. Anonymous, basic, bearer token and the
+  token-service handshake.
+- **Credentials stay on the server** — the browser never talks to a registry:
+  every call is proxied, so tokens never reach the page and no registry needs
+  CORS.
+- **Light footprint** — a single static binary in a distroless image, no
+  database, no Node, no CDN: it runs air-gapped and the pages work before any
+  script loads.
 
-## Screenshots
+| | |
+| --- | --- |
+| ![Repository view: tag rows with platforms, layer strip, size, age and digest, filter chips by tag kind and a pull bar that follows the selected row](docs/images/repository.png) | ![Image detail: proportional layer bar with the largest layer highlighted, a layer table with each layer's share, configuration and environment](docs/images/image.png) |
+| **Repository**: tags resolve as they scroll into view; the pull bar follows the selected row | **Image**: the layer composition, the configuration and the raw manifest |
 
-<p align="center">
-  <img src="docs/images/catalog.png" alt="Catalog with a side rail of namespaces and the rows grouped by namespace: each repository with its newest tag, a layer strip, size, tag count, platforms and last push" width="900">
-</p>
+## Quick start
 
-<table>
-  <tr>
-    <td width="50%"><img src="docs/images/repository.png" alt="Repository view: tag rows with platforms, layer strip, size, age and digest, filter chips by tag kind and a pull bar that follows the selected row"></td>
-    <td width="50%"><img src="docs/images/image.png" alt="Image detail: proportional layer bar with the largest layer highlighted, a layer table with each layer's share, configuration and environment"></td>
-  </tr>
-  <tr>
-    <td align="center"><em>Repository — tags resolve as they scroll into view; the pull bar follows the selected row</em></td>
-    <td align="center"><em>Image — layer composition, config and raw manifest</em></td>
-  </tr>
-</table>
-
-## Features
-
-- Multiple registries in one instance, one tab each in the header (a picker on
-  a phone), each with its own credentials, timeouts and permissions.
-- Catalog grouped by namespace, built for registries with hundreds of
-  repositories: each row shows the newest tag, its size, platforms, age and a
-  layer strip (first layer, largest layer, the rest). Small registries open
-  every group; large ones load a group's rows the first time it is opened.
-  A flat view and namespace chips are one click away.
-- Instant in-memory search; the full repository list is indexed server-side,
-  so filtering does not re-walk the registry. The top-bar box searches live
-  from any page, with the matches highlighted in a drop-down.
-- Expand or collapse every namespace group with one click.
-- Keyboard first: `/` to filter, `j`/`k` to move, `enter` to open, `c` to copy
-  the pull command of the selected row.
-- Tag rows that resolve lazily as they scroll into view, bounded by a
-  per-registry concurrency limit, filterable by kind (releases, pre-releases,
-  moving tags such as `latest`, which show the version they point at).
-- Image detail: proportional layer bar with the largest layer highlighted, a
-  layer table with each layer's share and build command, labels, environment,
-  config, annotations and the raw manifest; pull by tag or by digest.
-- Multi-architecture indexes: every child manifest is listed with its platform,
-  and shared layers are counted once in the total size.
-- Copyable `docker pull` command, with an overridable pull hostname.
-- Manifest deletion, opt-in per registry.
-- Auth: anonymous, HTTP basic, a static bearer token, and the automatic bearer
-  token-service handshake (Harbor, GHCR, Gitea, htpasswd-protected
-  Distribution).
-- Dark and light themes, remembered per visitor.
-- `/healthz` endpoint, structured logs (text or JSON), graceful shutdown.
-- No CDN, no Node build step: templates, CSS, the Archivo and JetBrains Mono
-  fonts and HTMX are embedded in the binary, so it runs air-gapped.
-
-## Quickstart
-
-### Docker Compose (fastest, includes a demo registry)
-
-```bash
-git clone https://github.com/amaze-labs/MazeRegistryUI.git
-cd MazeRegistryUI
-$EDITOR deploy/config.yaml     # point it at your registries
-docker compose up -d
-```
-
-Open <http://localhost:8080>. The bundled stack starts a throwaway
-Distribution 3 registry alongside the UI, so there is something to look at
-before you change anything. `docker compose down -v` removes both.
-
-### Docker, against a registry you already run
-
-Write a `config.yaml`:
+You need Docker with the Compose plugin. Save this as `config.yaml`, with your
+registry's address — the root, **without** `/v2`:
 
 ```yaml
-server:
-  addr: ":8080"
-
-ui:
-  title: Registry
-
 registries:
-  - id: local
-    name: Local registry
-    url: http://registry.internal:5000
+  - name: Homelab
+    url: http://registry.example.com:5000
     auth:
       type: none
+```
+
+and this as `docker-compose.yml` next to it:
+
+```yaml
+services:
+  mazeregistryui:
+    image: ghcr.io/amaze-labs/mazeregistryui:latest
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - ./config.yaml:/etc/mazeregistryui/config.yaml:ro
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
 ```
 
 Then:
 
 ```bash
-docker run -d --name mazeregistryui \
-  -p 8080:8080 \
-  -v "$PWD/config.yaml:/etc/mazeregistryui/config.yaml:ro" \
-  --read-only --tmpfs /tmp:size=16m \
-  --cap-drop ALL --security-opt no-new-privileges:true \
-  ghcr.io/amaze-labs/mazeregistryui:latest
+docker compose up -d
 ```
 
-The image runs as uid 65532 and reads `/etc/mazeregistryui/config.yaml` by
-default. See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for Kubernetes, reverse
-proxies and TLS.
+Open <http://localhost:8080>. To add a registry, list it in `config.yaml`
+and run `docker compose restart`: the file is the whole configuration, there
+is nothing to set up in the UI. Credentials go in environment variables, referenced from the file
+as `${VAR}` — see [Configuration](docs/CONFIGURATION.md#secrets).
 
-### From source
+Want to look around first? Clone the repository and start the
+[demo registries](docs/demo/seed.sh) — the data in the screenshots above:
 
 ```bash
-make build                                  # -> bin/mazeregistryui
-./bin/mazeregistryui -config config.yaml
+sh docs/demo/seed.sh                          # two invented registries, in Docker
+make build && bin/mazeregistryui -config docs/demo/config.yaml
 ```
 
-Requires Go 1.25 or newer and nothing else. Useful flags:
+then open <http://127.0.0.1:18080>. `sh docs/demo/seed.sh down` removes them.
 
-```bash
-./bin/mazeregistryui -config config.yaml -check   # validate the config and exit
-./bin/mazeregistryui -version
-```
-
-## Configuration at a glance
-
-Configuration is file-only: registries cannot be added from the UI, so the file
-is the complete list of what is browsable.
-
-| Key | Default | What it does |
-| --- | --- | --- |
-| `server.addr` | `:8080` | Listen address. |
-| `server.base_path` | *(none)* | Serve under a sub-path, e.g. `/registry`. |
-| `server.access_log` | `false` | One structured log line per request. |
-| `ui.title` | `MazeRegistryUI` | Name in the header and page titles. |
-| `ui.theme` | `auto` | `auto`, `dark` or `light`; visitors can override. |
-| `ui.show_pull_command` | `false` | Render a copyable `docker pull` command. |
-| `registries[].id` | derived from `name` | Identifier used in URLs. |
-| `registries[].url` | *(required)* | Registry root — **without** the `/v2` suffix. |
-| `registries[].auth.type` | `none` | `none`, `basic` or `bearer`. |
-| `registries[].delete_enabled` | `false` | Expose manifest deletion for this registry. |
-| `registries[].cache_ttl` | `60s` | How long tag-addressed data is reused. |
-
-Secrets stay out of the file with `${VAR}` / `${VAR:-fallback}` expansion or
-the `password_env` / `token_env` fields.
-
-Full reference, worked examples and troubleshooting:
-**[docs/CONFIGURATION.md](docs/CONFIGURATION.md)**.
-
-## Requirements
-
-- **To run the container:** any OCI runtime. Images are published for
-  `linux/amd64` and `linux/arm64`.
-- **To build from source:** Go 1.25 or newer. No CGO, no Node, no other
-  toolchain.
-- **Registries:** anything implementing OCI Distribution Spec v1.1 —
-  Distribution 3.x, Harbor, GHCR, Gitea, Zot, Artifactory. Registries that only
-  serve Docker manifest schema 1 are not supported.
-- Deletion additionally needs the registry itself started with storage deletion
-  enabled (`REGISTRY_STORAGE_DELETE_ENABLED=true` for Distribution).
+Behind a reverse proxy, on a sub-path, on Kubernetes or as a systemd service:
+see [Deployment](docs/DEPLOYMENT.md).
 
 ## Documentation
 
-| Document | Contents |
+| | |
 | --- | --- |
-| [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | Every configuration field, worked examples, troubleshooting. |
-| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Docker, Compose, Kubernetes, reverse proxies, releases. |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | How it is put together, for people changing the code. |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | Development loop and commit conventions. |
+| [Configuration](docs/CONFIGURATION.md) | Every field with its default, credentials, worked examples, troubleshooting |
+| [Deployment](docs/DEPLOYMENT.md) | Docker, Compose, Kubernetes, reverse proxies and TLS, authentication in front, releases |
+| [Architecture](docs/ARCHITECTURE.md) | How a request travels, the caches, the security posture — for people changing the code |
+| [Contributing](CONTRIBUTING.md) | Running from source, tests, commit conventions |
 
 ## License
 
@@ -187,7 +108,6 @@ Deploying this as a network service does not by itself oblige you to publish
 changes; the GPL is triggered by distribution, not by use. If you distribute a
 modified build, the modified source must go with it.
 
-Bundled third-party components — htmx (0BSD), Archivo and JetBrains Mono
-(OFL-1.1) and
-gopkg.in/yaml.v3 (MIT and Apache-2.0) — keep their own licences: see
-[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
+Bundled third-party components — htmx (0BSD), the Archivo and JetBrains Mono
+fonts (OFL-1.1) and gopkg.in/yaml.v3 (MIT and Apache-2.0) — keep their own
+licences: see [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
