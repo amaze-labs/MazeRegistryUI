@@ -9,7 +9,7 @@
 # BUILDPLATFORM pins the builder to the machine's native architecture so that
 # cross-compiling to linux/arm64 uses Go's own cross-compiler instead of QEMU
 # emulating the whole toolchain.
-FROM --platform=$BUILDPLATFORM golang:1.25-alpine AS builder
+FROM --platform=$BUILDPLATFORM golang:1.27-alpine AS builder
 
 WORKDIR /src
 
